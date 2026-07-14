@@ -1,0 +1,293 @@
+name: fruit-shop
+
+networks:
+  fruit-shop:
+    name: fruit-shop
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: fruit-shop-traefik
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ../services/auth-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-auth-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${AUTH_SERVICE_DATABASE_URL}
+      REDIS_URL: ${AUTH_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.auth-service.rule=PathPrefix(`/api/auth-service`)
+      - traefik.http.routers.auth-service.entrypoints=web
+      - traefik.http.routers.auth-service.middlewares=auth-service-strip
+      - traefik.http.middlewares.auth-service-strip.stripprefix.prefixes=/api/auth-service
+      - traefik.http.services.auth-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  catalog-service:
+    build:
+      context: ../services/catalog-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-catalog-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${CATALOG_SERVICE_DATABASE_URL}
+      REDIS_URL: ${CATALOG_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.catalog-service.rule=PathPrefix(`/api/catalog-service`)
+      - traefik.http.routers.catalog-service.entrypoints=web
+      - traefik.http.routers.catalog-service.middlewares=catalog-service-strip
+      - traefik.http.middlewares.catalog-service-strip.stripprefix.prefixes=/api/catalog-service
+      - traefik.http.services.catalog-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ../services/inventory-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-inventory-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${INVENTORY_SERVICE_DATABASE_URL}
+      REDIS_URL: ${INVENTORY_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.inventory-service.rule=PathPrefix(`/api/inventory-service`)
+      - traefik.http.routers.inventory-service.entrypoints=web
+      - traefik.http.routers.inventory-service.middlewares=inventory-service-strip
+      - traefik.http.middlewares.inventory-service-strip.stripprefix.prefixes=/api/inventory-service
+      - traefik.http.services.inventory-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ../services/order-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-order-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${ORDER_SERVICE_DATABASE_URL}
+      REDIS_URL: ${ORDER_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.order-service.rule=PathPrefix(`/api/order-service`)
+      - traefik.http.routers.order-service.entrypoints=web
+      - traefik.http.routers.order-service.middlewares=order-service-strip
+      - traefik.http.middlewares.order-service-strip.stripprefix.prefixes=/api/order-service
+      - traefik.http.services.order-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ../services/payment-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-payment-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${PAYMENT_SERVICE_DATABASE_URL}
+      REDIS_URL: ${PAYMENT_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.payment-service.rule=PathPrefix(`/api/payment-service`)
+      - traefik.http.routers.payment-service.entrypoints=web
+      - traefik.http.routers.payment-service.middlewares=payment-service-strip
+      - traefik.http.middlewares.payment-service-strip.stripprefix.prefixes=/api/payment-service
+      - traefik.http.services.payment-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  delivery-service:
+    build:
+      context: ../services/delivery-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-delivery-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${DELIVERY_SERVICE_DATABASE_URL}
+      REDIS_URL: ${DELIVERY_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.delivery-service.rule=PathPrefix(`/api/delivery-service`)
+      - traefik.http.routers.delivery-service.entrypoints=web
+      - traefik.http.routers.delivery-service.middlewares=delivery-service-strip
+      - traefik.http.middlewares.delivery-service-strip.stripprefix.prefixes=/api/delivery-service
+      - traefik.http.services.delivery-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  coupon-service:
+    build:
+      context: ../services/coupon-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-coupon-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${COUPON_SERVICE_DATABASE_URL}
+      REDIS_URL: ${COUPON_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.coupon-service.rule=PathPrefix(`/api/coupon-service`)
+      - traefik.http.routers.coupon-service.entrypoints=web
+      - traefik.http.routers.coupon-service.middlewares=coupon-service-strip
+      - traefik.http.middlewares.coupon-service-strip.stripprefix.prefixes=/api/coupon-service
+      - traefik.http.services.coupon-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  review-service:
+    build:
+      context: ../services/review-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-review-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${REVIEW_SERVICE_DATABASE_URL}
+      REDIS_URL: ${REVIEW_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.review-service.rule=PathPrefix(`/api/review-service`)
+      - traefik.http.routers.review-service.entrypoints=web
+      - traefik.http.routers.review-service.middlewares=review-service-strip
+      - traefik.http.middlewares.review-service-strip.stripprefix.prefixes=/api/review-service
+      - traefik.http.services.review-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ../services/notification-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-notification-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${NOTIFICATION_SERVICE_DATABASE_URL}
+      REDIS_URL: ${NOTIFICATION_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.notification-service.rule=PathPrefix(`/api/notification-service`)
+      - traefik.http.routers.notification-service.entrypoints=web
+      - traefik.http.routers.notification-service.middlewares=notification-service-strip
+      - traefik.http.middlewares.notification-service-strip.stripprefix.prefixes=/api/notification-service
+      - traefik.http.services.notification-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  cms-service:
+    build:
+      context: ../services/cms-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-cms-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${CMS_SERVICE_DATABASE_URL}
+      REDIS_URL: ${CMS_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.cms-service.rule=PathPrefix(`/api/cms-service`)
+      - traefik.http.routers.cms-service.entrypoints=web
+      - traefik.http.routers.cms-service.middlewares=cms-service-strip
+      - traefik.http.middlewares.cms-service-strip.stripprefix.prefixes=/api/cms-service
+      - traefik.http.services.cms-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  search-service:
+    build:
+      context: ../services/search-service
+      dockerfile: Dockerfile
+    container_name: fruit-shop-search-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${SEARCH_SERVICE_DATABASE_URL}
+      REDIS_URL: ${SEARCH_SERVICE_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.search-service.rule=PathPrefix(`/api/search-service`)
+      - traefik.http.routers.search-service.entrypoints=web
+      - traefik.http.routers.search-service.middlewares=search-service-strip
+      - traefik.http.middlewares.search-service-strip.stripprefix.prefixes=/api/search-service
+      - traefik.http.services.search-service.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  storefront-bff:
+    build:
+      context: ../services/storefront-bff
+      dockerfile: Dockerfile
+    container_name: fruit-shop-storefront-bff
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${STOREFRONT_BFF_DATABASE_URL}
+      REDIS_URL: ${STOREFRONT_BFF_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.storefront-bff.rule=PathPrefix(`/api/storefront-bff`)
+      - traefik.http.routers.storefront-bff.entrypoints=web
+      - traefik.http.routers.storefront-bff.middlewares=storefront-bff-strip
+      - traefik.http.middlewares.storefront-bff-strip.stripprefix.prefixes=/api/storefront-bff
+      - traefik.http.services.storefront-bff.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
+  admin-bff:
+    build:
+      context: ../services/admin-bff
+      dockerfile: Dockerfile
+    container_name: fruit-shop-admin-bff
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      DATABASE_URL: ${ADMIN_BFF_DATABASE_URL}
+      REDIS_URL: ${ADMIN_BFF_REDIS_URL}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=fruit-shop
+      - traefik.http.routers.admin-bff.rule=PathPrefix(`/api/admin-bff`)
+      - traefik.http.routers.admin-bff.entrypoints=web
+      - traefik.http.routers.admin-bff.middlewares=admin-bff-strip
+      - traefik.http.middlewares.admin-bff-strip.stripprefix.prefixes=/api/admin-bff
+      - traefik.http.services.admin-bff.loadbalancer.server.port=8000
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+
