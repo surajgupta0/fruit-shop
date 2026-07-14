@@ -20,13 +20,16 @@ services:
 
   auth-service:
     build:
-      context: ../services/auth-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/auth-service/Dockerfile
     container_name: fruit-shop-auth-service
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
+      MOCK_MODE: ${AUTH_SERVICE_MOCK_MODE:-true}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       DATABASE_URL: ${AUTH_SERVICE_DATABASE_URL}
       REDIS_URL: ${AUTH_SERVICE_REDIS_URL}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8000}
     labels:
       - traefik.enable=true
       - traefik.docker.network=fruit-shop
