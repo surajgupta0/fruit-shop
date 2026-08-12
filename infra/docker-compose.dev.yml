@@ -5,6 +5,24 @@ networks:
     name: fruit-shop
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fruit-shop-postgres
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fruit-shop
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   traefik:
     image: traefik:v3.3
     container_name: fruit-shop-traefik
@@ -23,9 +41,11 @@ services:
       context: ..
       dockerfile: services/auth-service/Dockerfile
     container_name: fruit-shop-auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
-      MOCK_MODE: ${AUTH_SERVICE_MOCK_MODE:-true}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       DATABASE_URL: ${AUTH_SERVICE_DATABASE_URL}
       REDIS_URL: ${AUTH_SERVICE_REDIS_URL}
@@ -294,3 +314,5 @@ services:
       - fruit-shop
     restart: unless-stopped
 
+volumes:
+  postgres_data:

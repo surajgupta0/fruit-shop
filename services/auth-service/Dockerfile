@@ -7,7 +7,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY packages/shared-lib-py /packages/shared-lib-py
-COPY services/auth-service/pyproject.toml /tmp/auth/pyproject.toml
 
 RUN pip install --no-cache-dir /packages/shared-lib-py \
     && pip install --no-cache-dir \
@@ -23,13 +22,11 @@ RUN pip install --no-cache-dir /packages/shared-lib-py \
         "httpx>=0.28.0"
 
 COPY services/auth-service/app ./app
-COPY services/auth-service/fixtures ./fixtures
 COPY services/auth-service/alembic ./alembic
 COPY services/auth-service/alembic.ini ./alembic.ini
 
 ENV PYTHONPATH=/app
-ENV FRUITSHOP_ROOT=/
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

@@ -20,7 +20,6 @@ from app.security import (
     hash_token,
     verify_password,
 )
-from app.store import MockOtp, MockRefreshToken, MockUser, mock_store
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +28,17 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _token_pair(user: User | MockUser, settings: Settings, refresh_plain: str) -> TokenPair:
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _token_pair(user: User, settings: Settings, refresh_plain: str) -> TokenPair:
     access = create_access_token(
         user_id=user.id,
         email=user.email,
-        role=user.role.value if isinstance(user.role, UserRole) else str(user.role),
+        role=user.role.value,
         settings=settings,
     )
     return TokenPair(
@@ -43,99 +48,44 @@ def _token_pair(user: User | MockUser, settings: Settings, refresh_plain: str) -
     )
 
 
-def _to_user_response(user: User | MockUser) -> UserResponse:
-    role = user.role.value if isinstance(user.role, UserRole) else str(user.role)
+def _to_user_response(user: User) -> UserResponse:
     return UserResponse(
         id=user.id,
         phone=user.phone,
         email=user.email,
         name=user.name,
-        role=role,
+        role=user.role.value,
         is_active=user.is_active,
-        created_at=getattr(user, "created_at", None),
+        created_at=user.created_at,
     )
 
 
-async def request_otp(
-    phone: str,
-    settings: Settings,
-    session: AsyncSession | None,
-) -> None:
-    code = settings.MOCK_OTP if settings.MOCK_MODE else generate_otp(settings.OTP_LENGTH)
-    code_hash = hash_token(code)
+async def request_otp(phone: str, settings: Settings, session: AsyncSession) -> None:
+    code = generate_otp(settings.OTP_LENGTH)
     expires_at = _utcnow() + timedelta(minutes=settings.OTP_TTL_MINUTES)
 
-    if settings.MOCK_MODE:
-        mock_store.otps.append(
-            MockOtp(
-                id=uuid.uuid4(),
-                phone=phone,
-                code_hash=code_hash,
-                expires_at=expires_at,
-            )
+    session.add(
+        OtpCode(
+            phone=phone,
+            code_hash=hash_token(code),
+            expires_at=expires_at,
         )
-    else:
-        assert session is not None
-        session.add(
-            OtpCode(
-                phone=phone,
-                code_hash=code_hash,
-                expires_at=expires_at,
-            )
-        )
-        await session.flush()
+    )
+    await session.flush()
 
     await send_otp_notification(phone=phone, code=code, settings=settings)
-    logger.info("otp_requested", extra={"phone": phone, "mock": settings.MOCK_MODE})
+    logger.info("otp_requested", extra={"phone": phone})
 
 
 async def verify_otp(
     phone: str,
     code: str,
     settings: Settings,
-    session: AsyncSession | None,
+    session: AsyncSession,
 ) -> TokenPair:
     code_hash = hash_token(code)
     now = _utcnow()
 
-    if settings.MOCK_MODE:
-        otp = next(
-            (
-                o
-                for o in reversed(mock_store.otps)
-                if o.phone == phone and not o.consumed
-            ),
-            None,
-        )
-        if otp is None or otp.code_hash != code_hash or otp.expires_at < now:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
-        otp.consumed = True
-
-        user_id = mock_store.users_by_phone.get(phone)
-        if user_id is None:
-            user = MockUser(
-                id=uuid.uuid4(),
-                phone=phone,
-                email=None,
-                password_hash=None,
-                name=f"User {phone[-4:]}",
-                role=UserRole.customer,
-            )
-            mock_store.users[user.id] = user
-            mock_store.users_by_phone[phone] = user.id
-        else:
-            user = mock_store.users[user_id]
-
-        refresh_plain = generate_refresh_token()
-        mock_store.refresh_tokens[hash_token(refresh_plain)] = MockRefreshToken(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            token_hash=hash_token(refresh_plain),
-            expires_at=now + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
-        )
-        return _token_pair(user, settings, refresh_plain)
-
-    assert session is not None
     result = await session.execute(
         select(OtpCode)
         .where(OtpCode.phone == phone, OtpCode.consumed.is_(False))
@@ -143,7 +93,7 @@ async def verify_otp(
         .limit(1)
     )
     otp = result.scalar_one_or_none()
-    if otp is None or otp.code_hash != code_hash or otp.expires_at < now:
+    if otp is None or otp.code_hash != code_hash or _as_utc(otp.expires_at) < now:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
 
     otp.consumed = True
@@ -178,37 +128,8 @@ async def login(
     email: str,
     password: str,
     settings: Settings,
-    session: AsyncSession | None,
+    session: AsyncSession,
 ) -> TokenPair:
-    now = _utcnow()
-
-    if settings.MOCK_MODE:
-        user_id = mock_store.users_by_email.get(email.lower())
-        user = mock_store.users.get(user_id) if user_id else None
-        if (
-            user is None
-            or user.password_hash is None
-            or not verify_password(password, user.password_hash)
-        ):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        if user.role not in (UserRole.admin, UserRole.staff):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                detail="Password login is restricted to admin/staff",
-            )
-        if not user.is_active:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="User is inactive")
-
-        refresh_plain = generate_refresh_token()
-        mock_store.refresh_tokens[hash_token(refresh_plain)] = MockRefreshToken(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            token_hash=hash_token(refresh_plain),
-            expires_at=now + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
-        )
-        return _token_pair(user, settings, refresh_plain)
-
-    assert session is not None
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if (
@@ -230,7 +151,7 @@ async def login(
         RefreshToken(
             user_id=user.id,
             token_hash=hash_token(refresh_plain),
-            expires_at=now + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
+            expires_at=_utcnow() + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
         )
     )
     await session.flush()
@@ -240,37 +161,16 @@ async def login(
 async def refresh(
     refresh_token: str,
     settings: Settings,
-    session: AsyncSession | None,
+    session: AsyncSession,
 ) -> TokenPair:
     token_hash = hash_token(refresh_token)
     now = _utcnow()
 
-    if settings.MOCK_MODE:
-        stored = mock_store.refresh_tokens.get(token_hash)
-        if stored is None or stored.revoked or stored.expires_at < now:
-            raise HTTPException(
-                status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token"
-            )
-        stored.revoked = True
-        user = mock_store.users.get(stored.user_id)
-        if user is None or not user.is_active:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="User not found")
-
-        refresh_plain = generate_refresh_token()
-        mock_store.refresh_tokens[hash_token(refresh_plain)] = MockRefreshToken(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            token_hash=hash_token(refresh_plain),
-            expires_at=now + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
-        )
-        return _token_pair(user, settings, refresh_plain)
-
-    assert session is not None
     result = await session.execute(
         select(RefreshToken).where(RefreshToken.token_hash == token_hash)
     )
     stored = result.scalar_one_or_none()
-    if stored is None or stored.revoked or stored.expires_at < now:
+    if stored is None or stored.revoked or _as_utc(stored.expires_at) < now:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token"
         )
@@ -293,22 +193,7 @@ async def refresh(
     return _token_pair(user, settings, refresh_plain)
 
 
-async def get_me_from_db(
-    user_id: str,
-    settings: Settings,
-    session: AsyncSession | None,
-) -> UserResponse:
-    if settings.MOCK_MODE:
-        try:
-            uid = uuid.UUID(user_id)
-        except ValueError as exc:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid user") from exc
-        user = mock_store.users.get(uid)
-        if user is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
-        return _to_user_response(user)
-
-    assert session is not None
+async def get_me(user_id: str, session: AsyncSession) -> UserResponse:
     try:
         uid = uuid.UUID(user_id)
     except ValueError as exc:
@@ -323,8 +208,7 @@ async def get_me_from_db(
 
 async def create_staff_user(
     payload: CreateStaffRequest,
-    settings: Settings,
-    session: AsyncSession | None,
+    session: AsyncSession,
 ) -> UserResponse:
     if payload.role.value == UserRole.customer.value:
         raise HTTPException(
@@ -332,26 +216,6 @@ async def create_staff_user(
             detail="Admin endpoint cannot create customer accounts",
         )
 
-    if settings.MOCK_MODE:
-        if payload.phone in mock_store.users_by_phone:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="Phone already registered")
-        if payload.email.lower() in mock_store.users_by_email:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="Email already registered")
-
-        user = MockUser(
-            id=uuid.uuid4(),
-            phone=payload.phone,
-            email=payload.email.lower(),
-            password_hash=hash_password(payload.password),
-            name=payload.name,
-            role=UserRole(payload.role.value),
-        )
-        mock_store.users[user.id] = user
-        mock_store.users_by_phone[user.phone] = user.id
-        mock_store.users_by_email[user.email] = user.id
-        return _to_user_response(user)
-
-    assert session is not None
     existing = await session.execute(
         select(User).where((User.phone == payload.phone) | (User.email == payload.email))
     )

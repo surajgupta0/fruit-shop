@@ -59,37 +59,42 @@ async def test_refresh_rotates_tokens(client):
     new_body = refreshed.json()
     assert new_body["refresh_token"] != old_refresh
 
-    # Old refresh token is revoked
     reuse = await client.post("/auth/refresh", json={"refresh_token": old_refresh})
     assert reuse.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_me_mock_token(client):
+async def test_me_with_access_token(client):
+    phone = "+919999000005"
+    await client.post("/auth/otp/request", json={"phone": phone})
+    verify = await client.post(
+        "/auth/otp/verify",
+        json={"phone": phone, "code": "123456"},
+    )
+    access_token = verify.json()["access_token"]
+
     response = await client.get(
         "/auth/me",
-        headers={"Authorization": "Bearer mock-customer"},
+        headers={"Authorization": f"Bearer {access_token}"},
     )
     assert response.status_code == 200
-    body = response.json()
-    assert body["role"] == "customer"
-    assert body["email"] == "customer@fruitshop.example"
+    assert response.json()["phone"] == phone
+    assert response.json()["role"] == "customer"
 
 
 @pytest.mark.asyncio
-async def test_me_rejects_non_mock_token_in_mock_mode(client):
-    response = await client.get(
-        "/auth/me",
-        headers={"Authorization": "Bearer not-a-mock-token"},
+async def test_admin_create_staff_requires_admin(client, admin_token):
+    phone = "+919999000006"
+    await client.post("/auth/otp/request", json={"phone": phone})
+    verify = await client.post(
+        "/auth/otp/verify",
+        json={"phone": phone, "code": "123456"},
     )
-    assert response.status_code == 401
+    customer_token = verify.json()["access_token"]
 
-
-@pytest.mark.asyncio
-async def test_admin_create_staff_requires_admin(client):
     denied = await client.post(
         "/auth/admin/users",
-        headers={"Authorization": "Bearer mock-customer"},
+        headers={"Authorization": f"Bearer {customer_token}"},
         json={
             "phone": "+919999000010",
             "email": "staff@fruitshop.example",
@@ -102,7 +107,7 @@ async def test_admin_create_staff_requires_admin(client):
 
     created = await client.post(
         "/auth/admin/users",
-        headers={"Authorization": "Bearer mock-admin"},
+        headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "phone": "+919999000010",
             "email": "staff@fruitshop.example",

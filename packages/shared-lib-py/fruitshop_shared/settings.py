@@ -10,7 +10,6 @@ class BaseAppSettings(BaseSettings):
         extra="ignore",
     )
 
-    MOCK_MODE: bool = False
     DATABASE_URL: str | None = None
     REDIS_URL: str | None = None
     JWT_SECRET: str = "change-me-in-production"

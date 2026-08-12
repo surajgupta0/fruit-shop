@@ -13,8 +13,7 @@ from app.routers import auth as auth_router
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(service=settings.SERVICE_NAME)
-    if not settings.MOCK_MODE:
-        create_session_factory(settings)
+    create_session_factory(settings)
     yield
 
 

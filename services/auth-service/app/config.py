@@ -12,8 +12,6 @@ class Settings(BaseAppSettings):
     OTP_TTL_MINUTES: int = 5
     OTP_LENGTH: int = 6
     NOTIFICATION_SERVICE_URL: str = "http://notification-service:8000"
-    # Fixed OTP when MOCK_MODE=true (deterministic tests / local demo)
-    MOCK_OTP: str = "123456"
 
 
 @lru_cache
