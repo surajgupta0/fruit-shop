@@ -1,0 +1,15 @@
+{
+  "name": "fruit-shop",
+  "private": true,
+  "workspaces": [
+    "packages/web-core",
+    "frontend/admin",
+    "frontend/storefront"
+  ],
+  "scripts": {
+    "dev:admin": "npm run dev -w admin",
+    "dev:storefront": "npm run dev -w storefront",
+    "build:admin": "npm run build -w admin",
+    "build:storefront": "npm run build -w storefront"
+  }
+}
