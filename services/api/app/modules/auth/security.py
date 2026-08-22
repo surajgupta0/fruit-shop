@@ -10,12 +10,7 @@ import bcrypt
 import jwt
 
 from app.core.config import Settings
-
-
-def permissions_for_role(role: str) -> list[str]:
-    from app.modules.users.rbac import ROLE_PERMISSIONS
-
-    return list(ROLE_PERMISSIONS.get(role, []))
+from app.modules.users.rbac import permissions_for_role
 
 
 def hash_password(password: str) -> str:
@@ -31,8 +26,7 @@ def hash_token(value: str) -> str:
 
 
 def generate_otp(length: int = 6) -> str:
-    upper = 10**length
-    return str(secrets.randbelow(upper)).zfill(length)
+    return str(secrets.randbelow(10**length)).zfill(length)
 
 
 def generate_refresh_token() -> str:
@@ -48,12 +42,11 @@ def create_access_token(
     permissions: list[str] | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
-    perms = permissions if permissions is not None else permissions_for_role(role)
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "email": email,
         "roles": [role],
-        "permissions": perms,
+        "permissions": permissions if permissions is not None else permissions_for_role(role),
         "type": "access",
         "iat": now,
         "exp": now + timedelta(minutes=settings.JWT_ACCESS_TTL_MINUTES),

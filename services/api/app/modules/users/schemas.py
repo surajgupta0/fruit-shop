@@ -1,14 +1,9 @@
 from datetime import datetime
-from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-
-class UserRole(str, Enum):
-    customer = "customer"
-    admin = "admin"
-    staff = "staff"
+from app.modules.auth.models import UserRole
 
 
 class AddressCreate(BaseModel):

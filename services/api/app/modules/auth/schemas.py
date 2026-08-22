@@ -1,17 +1,5 @@
-from datetime import datetime
-from enum import Enum
-from uuid import UUID
-
 from pydantic import BaseModel, EmailStr, Field
 
-
-class UserRole(str, Enum):
-    customer = "customer"
-    admin = "admin"
-    staff = "staff"
-
-
-# --- Auth schemas ---
 
 class OtpRequest(BaseModel):
     phone: str = Field(min_length=8, max_length=32)
@@ -36,17 +24,3 @@ class TokenPair(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
-
-
-class UserResponse(BaseModel):
-    id: UUID | str
-    phone: str
-    email: str | None = None
-    name: str
-    role: str
-    is_active: bool
-    permissions: list[str] = Field(default_factory=list)
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-    model_config = {"from_attributes": True}

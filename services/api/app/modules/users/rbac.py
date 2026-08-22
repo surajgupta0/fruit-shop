@@ -61,3 +61,8 @@ ROLES: list[tuple[str, str]] = [
     ("staff", "Shop staff (email/password login)"),
     ("admin", "Full system administrator"),
 ]
+
+
+def permissions_for_role(role: str) -> list[str]:
+    return list(ROLE_PERMISSIONS.get(role, []))
+

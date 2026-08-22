@@ -27,11 +27,16 @@ router = APIRouter(prefix="/users", tags=["users"])
 roles_router = APIRouter(prefix="/roles", tags=["roles"])
 
 
-def _forbid(permission: str) -> None:
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail=f"Missing permission: {permission}",
-    )
+def _actor_role(actor: AuthUser) -> str:
+    return actor.roles[0] if actor.roles else ""
+
+
+def _require_any_permission(actor: AuthUser, *permissions: str) -> None:
+    if not set(permissions) & set(actor.permissions):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing one of: {', '.join(permissions)}",
+        )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -39,8 +44,7 @@ async def get_me(
     user: Annotated[AuthUser, Depends(require_permissions(rbac.USERS_READ_SELF))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
-    db_user = await users_service.get_user_by_id(user.sub, session)
-    return users_service.to_user_response(db_user)
+    return users_service.to_user_response(await users_service.get_user_by_id(user.sub, session))
 
 
 @router.patch("/me", response_model=UserResponse)
@@ -104,12 +108,7 @@ async def list_users(
     search: str | None = None,
 ) -> UserListResponse:
     return await users_service.list_users(
-        session,
-        page=page,
-        page_size=page_size,
-        role=role,
-        is_active=is_active,
-        search=search,
+        session, page=page, page_size=page_size, role=role, is_active=is_active, search=search
     )
 
 
@@ -129,17 +128,13 @@ async def get_user(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
     is_self = str(user_id) == actor.sub
-    if is_self:
-        if rbac.USERS_READ_SELF not in actor.permissions:
-            _forbid(rbac.USERS_READ_SELF)
-    else:
-        if rbac.USERS_READ not in actor.permissions:
-            _forbid(rbac.USERS_READ)
-
+    _require_any_permission(
+        actor,
+        rbac.USERS_READ_SELF if is_self else rbac.USERS_READ,
+    )
     db_user = await users_service.get_user_by_id(str(user_id), session)
     if not is_self:
-        actor_role = actor.roles[0] if actor.roles else ""
-        users_service.assert_can_manage_user(actor_role, db_user)
+        users_service.assert_can_manage_user(_actor_role(actor), db_user)
     return users_service.to_user_response(db_user)
 
 
@@ -151,8 +146,7 @@ async def update_user(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
     db_user = await users_service.get_user_by_id(str(user_id), session)
-    actor_role = actor.roles[0] if actor.roles else ""
-    users_service.assert_can_manage_user(actor_role, db_user)
+    users_service.assert_can_manage_user(_actor_role(actor), db_user)
     return await users_service.update_user(str(user_id), body, session)
 
 
@@ -184,8 +178,7 @@ async def set_password(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
     db_user = await users_service.get_user_by_id(str(user_id), session)
-    actor_role = actor.roles[0] if actor.roles else ""
-    users_service.assert_can_manage_user(actor_role, db_user)
+    users_service.assert_can_manage_user(_actor_role(actor), db_user)
     return await users_service.set_password(str(user_id), body.password, session)
 
 
@@ -202,7 +195,4 @@ async def list_permissions(
     _: Annotated[AuthUser, Depends(require_permissions(rbac.ROLES_LIST))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[PermissionResponse]:
-    perms = await users_service.list_permissions(session)
-    return [
-        PermissionResponse(id=p.id, code=p.code, description=p.description) for p in perms
-    ]
+    return await users_service.list_permissions(session)

@@ -1,11 +1,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
-from fruitshop_shared.auth_deps import User as AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.core.deps import get_current_user, get_session
+from app.core.deps import get_session
 from app.modules.auth import service as auth_service
 from app.modules.auth.schemas import (
     LoginRequest,
@@ -13,7 +12,6 @@ from app.modules.auth.schemas import (
     OtpVerify,
     RefreshRequest,
     TokenPair,
-    UserResponse,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -54,11 +52,3 @@ async def refresh(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TokenPair:
     return await auth_service.refresh(body.refresh_token, settings, session)
-
-
-@router.get("/me", response_model=UserResponse)
-async def me(
-    user: Annotated[AuthUser, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> UserResponse:
-    return await auth_service.get_me(user.sub, session)

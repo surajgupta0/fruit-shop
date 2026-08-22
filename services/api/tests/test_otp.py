@@ -74,7 +74,7 @@ async def test_me_with_access_token(client):
     access_token = verify.json()["access_token"]
 
     response = await client.get(
-        "/auth/me",
+        "/users/me",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert response.status_code == 200
