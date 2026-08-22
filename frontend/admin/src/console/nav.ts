@@ -17,7 +17,37 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/",
     label: "Overview",
     permission: null,
-    description: "Your workspace at a glance",
+    description: "Dashboard and shortcuts",
+  },
+  {
+    href: "/products",
+    label: "Products",
+    permission: P.CATALOG_MANAGE,
+    description: "Catalog SKUs and listings",
+  },
+  {
+    href: "/inventory",
+    label: "Inventory",
+    permission: P.CATALOG_MANAGE,
+    description: "Stock levels and low-stock alerts",
+  },
+  {
+    href: "/categories",
+    label: "Categories",
+    permission: P.CATALOG_MANAGE,
+    description: "Fruit collections and trees",
+  },
+  {
+    href: "/brands",
+    label: "Brands",
+    permission: P.CATALOG_MANAGE,
+    description: "Suppliers and brand labels",
+  },
+  {
+    href: "/tags",
+    label: "Tags",
+    permission: P.CATALOG_MANAGE,
+    description: "Labels for filtering",
   },
   {
     href: "/users",
