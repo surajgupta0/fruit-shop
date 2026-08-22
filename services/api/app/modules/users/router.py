@@ -53,7 +53,7 @@ async def update_me(
     user: Annotated[AuthUser, Depends(require_permissions(rbac.USERS_UPDATE_SELF))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
-    return await users_service.update_user(user.sub, body, session)
+    return await users_service.update_user(user.sub, body, session, actor_id=user.sub)
 
 
 @router.get("/me/addresses", response_model=list[AddressResponse])
@@ -74,7 +74,7 @@ async def add_my_address(
     user: Annotated[AuthUser, Depends(require_permissions(rbac.USERS_UPDATE_SELF))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AddressResponse:
-    return await users_service.add_address(user.sub, body, session)
+    return await users_service.add_address(user.sub, body, session, actor_id=user.sub)
 
 
 @router.patch("/me/addresses/{address_id}", response_model=AddressResponse)
@@ -84,7 +84,9 @@ async def update_my_address(
     user: Annotated[AuthUser, Depends(require_permissions(rbac.USERS_UPDATE_SELF))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AddressResponse:
-    return await users_service.update_address(user.sub, str(address_id), body, session)
+    return await users_service.update_address(
+        user.sub, str(address_id), body, session, actor_id=user.sub
+    )
 
 
 @router.delete("/me/addresses/{address_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -115,10 +117,10 @@ async def list_users(
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: UserCreate,
-    _: Annotated[AuthUser, Depends(require_permissions(rbac.USERS_CREATE))],
+    actor: Annotated[AuthUser, Depends(require_permissions(rbac.USERS_CREATE))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
-    return await users_service.create_user(body, session)
+    return await users_service.create_user(body, session, actor_id=actor.sub)
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -147,7 +149,7 @@ async def update_user(
 ) -> UserResponse:
     db_user = await users_service.get_user_by_id(str(user_id), session)
     users_service.assert_can_manage_user(_actor_role(actor), db_user)
-    return await users_service.update_user(str(user_id), body, session)
+    return await users_service.update_user(str(user_id), body, session, actor_id=actor.sub)
 
 
 @router.patch("/{user_id}/role", response_model=UserResponse)
@@ -179,7 +181,9 @@ async def set_password(
 ) -> UserResponse:
     db_user = await users_service.get_user_by_id(str(user_id), session)
     users_service.assert_can_manage_user(_actor_role(actor), db_user)
-    return await users_service.set_password(str(user_id), body.password, session)
+    return await users_service.set_password(
+        str(user_id), body.password, session, actor_id=actor.sub
+    )
 
 
 @roles_router.get("", response_model=list[RoleResponse])

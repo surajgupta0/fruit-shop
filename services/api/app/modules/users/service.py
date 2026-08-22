@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.mixins import stamp_create, stamp_update
 from app.modules.auth.models import User, UserAddress, UserRole
 from app.modules.auth.security import hash_password
 from app.modules.users.models import Permission, Role
@@ -39,8 +40,16 @@ def _parse_uuid(value: str | uuid.UUID, *, label: str = "id") -> uuid.UUID:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Invalid {label}") from exc
 
 
+def _actor_uuid(actor_id: str | uuid.UUID | None) -> uuid.UUID | None:
+    if actor_id is None:
+        return None
+    return _parse_uuid(actor_id, label="actor id")
+
+
 async def get_user_by_id(user_id: str | uuid.UUID, session: AsyncSession) -> User:
-    result = await session.execute(select(User).where(User.id == _parse_uuid(user_id, label="user id")))
+    result = await session.execute(
+        select(User).where(User.id == _parse_uuid(user_id, label="user id"))
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -123,7 +132,12 @@ async def list_users(
     )
 
 
-async def create_user(payload: UserCreate, session: AsyncSession) -> UserResponse:
+async def create_user(
+    payload: UserCreate,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> UserResponse:
     if payload.role == UserRole.customer:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -137,6 +151,7 @@ async def create_user(payload: UserCreate, session: AsyncSession) -> UserRespons
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Phone or email already registered")
 
+    actor = _actor_uuid(actor_id)
     user = User(
         phone=payload.phone,
         email=email,
@@ -144,12 +159,19 @@ async def create_user(payload: UserCreate, session: AsyncSession) -> UserRespons
         name=payload.name,
         role=payload.role,
     )
+    stamp_create(user, actor)
     session.add(user)
     await session.flush()
     return to_user_response(user)
 
 
-async def update_user(user_id: str, payload: UserUpdate, session: AsyncSession) -> UserResponse:
+async def update_user(
+    user_id: str,
+    payload: UserUpdate,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> UserResponse:
     user = await get_user_by_id(user_id, session)
     data = payload.model_dump(exclude_unset=True)
 
@@ -169,7 +191,7 @@ async def update_user(user_id: str, payload: UserUpdate, session: AsyncSession) 
 
     for key, value in data.items():
         setattr(user, key, value)
-
+    stamp_update(user, _actor_uuid(actor_id))
     await session.flush()
     return to_user_response(user)
 
@@ -184,6 +206,7 @@ async def change_role(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot change your own role")
     user = await get_user_by_id(user_id, session)
     user.role = payload.role
+    stamp_update(user, _actor_uuid(actor_id))
     await session.flush()
     return to_user_response(user)
 
@@ -198,11 +221,18 @@ async def set_status(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot change your own status")
     user = await get_user_by_id(user_id, session)
     user.is_active = payload.is_active
+    stamp_update(user, _actor_uuid(actor_id))
     await session.flush()
     return to_user_response(user)
 
 
-async def set_password(user_id: str, password: str, session: AsyncSession) -> UserResponse:
+async def set_password(
+    user_id: str,
+    password: str,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> UserResponse:
     user = await get_user_by_id(user_id, session)
     if user.role == UserRole.customer:
         raise HTTPException(
@@ -210,6 +240,7 @@ async def set_password(user_id: str, password: str, session: AsyncSession) -> Us
             detail="Customers authenticate via OTP, not password",
         )
     user.password_hash = hash_password(password)
+    stamp_update(user, _actor_uuid(actor_id))
     await session.flush()
     return to_user_response(user)
 
@@ -223,6 +254,10 @@ async def list_roles(session: AsyncSession) -> list[RoleResponse]:
             description=role.description,
             permissions=sorted(p.code for p in role.permissions)
             or sorted(permissions_for_role(role.name)),
+            created_at=role.created_at,
+            updated_at=role.updated_at,
+            created_by=role.created_by,
+            updated_by=role.updated_by,
         )
         for role in result.scalars().all()
     ]
@@ -247,11 +282,14 @@ async def add_address(
     user_id: str,
     payload: AddressCreate,
     session: AsyncSession,
+    *,
+    actor_id: str,
 ) -> AddressResponse:
     user = await get_user_by_id(user_id, session)
     if payload.is_default:
         await _clear_default_addresses(user.id, session)
 
+    actor = _actor_uuid(actor_id)
     address = UserAddress(
         user_id=user.id,
         label=payload.label,
@@ -263,6 +301,7 @@ async def add_address(
         country=payload.country.upper(),
         is_default=payload.is_default,
     )
+    stamp_create(address, actor)
     session.add(address)
     await session.flush()
     return AddressResponse.model_validate(address)
@@ -273,6 +312,8 @@ async def update_address(
     address_id: str,
     payload: AddressUpdate,
     session: AsyncSession,
+    *,
+    actor_id: str,
 ) -> AddressResponse:
     user = await get_user_by_id(user_id, session)
     address = await _get_address(user.id, address_id, session)
@@ -285,12 +326,16 @@ async def update_address(
 
     for key, value in data.items():
         setattr(address, key, value)
-
+    stamp_update(address, _actor_uuid(actor_id))
     await session.flush()
     return AddressResponse.model_validate(address)
 
 
-async def delete_address(user_id: str, address_id: str, session: AsyncSession) -> None:
+async def delete_address(
+    user_id: str,
+    address_id: str,
+    session: AsyncSession,
+) -> None:
     user = await get_user_by_id(user_id, session)
     address = await _get_address(user.id, address_id, session)
     await session.delete(address)

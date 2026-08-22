@@ -6,6 +6,13 @@ from pydantic import BaseModel, EmailStr, Field
 from app.modules.auth.models import UserRole
 
 
+class AuditFields(BaseModel):
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    created_by: UUID | str | None = None
+    updated_by: UUID | str | None = None
+
+
 class AddressCreate(BaseModel):
     label: str = Field(default="home", max_length=64)
     line1: str = Field(min_length=1, max_length=255)
@@ -28,7 +35,7 @@ class AddressUpdate(BaseModel):
     is_default: bool | None = None
 
 
-class AddressResponse(BaseModel):
+class AddressResponse(AuditFields):
     id: UUID | str
     label: str
     line1: str
@@ -38,7 +45,6 @@ class AddressResponse(BaseModel):
     postal_code: str
     country: str
     is_default: bool
-    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -69,7 +75,7 @@ class UserPasswordUpdate(BaseModel):
     password: str = Field(min_length=8)
 
 
-class UserResponse(BaseModel):
+class UserResponse(AuditFields):
     id: UUID | str
     phone: str
     email: str | None = None
@@ -77,8 +83,6 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
     permissions: list[str] = Field(default_factory=list)
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -90,7 +94,7 @@ class UserListResponse(BaseModel):
     page_size: int
 
 
-class PermissionResponse(BaseModel):
+class PermissionResponse(AuditFields):
     id: UUID | str
     code: str
     description: str | None = None
@@ -98,7 +102,7 @@ class PermissionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class RoleResponse(BaseModel):
+class RoleResponse(AuditFields):
     id: UUID | str
     name: str
     description: str | None = None

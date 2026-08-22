@@ -4,11 +4,12 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.mixins import AuditMixin
 
 
 class UserRole(str, enum.Enum):
@@ -17,7 +18,7 @@ class UserRole(str, enum.Enum):
     staff = "staff"
 
 
-class User(Base):
+class User(AuditMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -33,22 +34,19 @@ class User(Base):
         index=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-    )
 
-    refresh_tokens: Mapped[list[RefreshToken]] = relationship(back_populates="user")
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
+        back_populates="user",
+        foreign_keys="[RefreshToken.user_id]",
+    )
     addresses: Mapped[list[UserAddress]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="[UserAddress.user_id]",
     )
 
 
-class UserAddress(Base):
+class UserAddress(AuditMixin, Base):
     __tablename__ = "user_addresses"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -65,14 +63,14 @@ class UserAddress(Base):
     postal_code: Mapped[str] = mapped_column(String(20))
     country: Mapped[str] = mapped_column(String(2), default="IN")
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+
+    user: Mapped[User] = relationship(
+        back_populates="addresses",
+        foreign_keys=[user_id],
     )
 
-    user: Mapped[User] = relationship(back_populates="addresses")
 
-
-class OtpCode(Base):
+class OtpCode(AuditMixin, Base):
     __tablename__ = "otp_codes"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -84,7 +82,7 @@ class OtpCode(Base):
     consumed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
-class RefreshToken(Base):
+class RefreshToken(AuditMixin, Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -97,4 +95,7 @@ class RefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    user: Mapped[User] = relationship(back_populates="refresh_tokens")
+    user: Mapped[User] = relationship(
+        back_populates="refresh_tokens",
+        foreign_keys=[user_id],
+    )

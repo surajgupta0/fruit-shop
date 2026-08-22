@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
+from app.core.mixins import stamp_create, stamp_update
 from app.modules.auth.models import OtpCode, RefreshToken, User, UserRole
 from app.modules.auth.notifications import send_otp_notification
 from app.modules.auth.schemas import TokenPair
@@ -37,13 +38,13 @@ async def _issue_tokens(user: User, settings: Settings, session: AsyncSession) -
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="User is inactive")
 
     refresh_plain = generate_refresh_token()
-    session.add(
-        RefreshToken(
-            user_id=user.id,
-            token_hash=hash_token(refresh_plain),
-            expires_at=_utcnow() + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
-        )
+    token = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_token(refresh_plain),
+        expires_at=_utcnow() + timedelta(days=settings.JWT_REFRESH_TTL_DAYS),
     )
+    stamp_create(token, user.id)
+    session.add(token)
     await session.flush()
 
     role = user.role.value
@@ -61,13 +62,13 @@ async def _issue_tokens(user: User, settings: Settings, session: AsyncSession) -
 
 async def request_otp(phone: str, settings: Settings, session: AsyncSession) -> None:
     code = generate_otp(settings.OTP_LENGTH)
-    session.add(
-        OtpCode(
-            phone=phone,
-            code_hash=hash_token(code),
-            expires_at=_utcnow() + timedelta(minutes=settings.OTP_TTL_MINUTES),
-        )
+    otp = OtpCode(
+        phone=phone,
+        code_hash=hash_token(code),
+        expires_at=_utcnow() + timedelta(minutes=settings.OTP_TTL_MINUTES),
     )
+    stamp_create(otp, None)
+    session.add(otp)
     await session.flush()
     await send_otp_notification(phone=phone, code=code)
     logger.info("otp_requested phone=%s", phone)
@@ -91,12 +92,16 @@ async def verify_otp(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
 
     otp.consumed = True
+    stamp_update(otp, None)
 
     result = await session.execute(select(User).where(User.phone == phone))
     user = result.scalar_one_or_none()
     if user is None:
         user = User(phone=phone, name=f"User {phone[-4:]}", role=UserRole.customer)
         session.add(user)
+        await session.flush()
+        # Self-signup: store own id as creator on the same row
+        stamp_create(user, user.id)
         await session.flush()
 
     return await _issue_tokens(user, settings, session)
@@ -139,6 +144,8 @@ async def refresh(
         )
 
     stored.revoked = True
+    stamp_update(stored, stored.user_id)
+
     result = await session.execute(select(User).where(User.id == stored.user_id))
     user = result.scalar_one_or_none()
     if user is None:
