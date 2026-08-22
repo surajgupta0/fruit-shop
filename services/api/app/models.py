@@ -1,5 +1,18 @@
 from app.core.database import Base
 from app.modules.auth.models import OtpCode, RefreshToken, User, UserAddress  # noqa: F401
+from app.modules.catalog.models import (  # noqa: F401
+    Brand,
+    Category,
+    Product,
+    ProductAttribute,
+    ProductImage,
+    ProductOption,
+    ProductOptionValue,
+    ProductRelation,
+    ProductTag,
+    ProductVariant,
+    Tag,
+)
 from app.modules.users.models import Permission, Role, RolePermission  # noqa: F401
 
 __all__ = [
@@ -11,4 +24,15 @@ __all__ = [
     "Role",
     "Permission",
     "RolePermission",
+    "Brand",
+    "Category",
+    "Tag",
+    "Product",
+    "ProductTag",
+    "ProductOption",
+    "ProductOptionValue",
+    "ProductAttribute",
+    "ProductImage",
+    "ProductVariant",
+    "ProductRelation",
 ]
