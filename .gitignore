@@ -9,13 +9,11 @@ Thumbs.db
 *.swo
 *~
 
-# Environment & secrets (keep tracked examples like .env.dev / .env.example)
+# Environment & secrets
 .env
 .env.local
 .env.*.local
-.env.dev
 .env.production
-.env.staging
 *.pem
 *.key
 secrets/
@@ -78,3 +76,16 @@ tmp/
 temp/
 *.tmp
 *.bak
+
+# SQLite
+*.db
+
+.env.production
+.env.development
+.env.test
+.env.local
+.env.dev
+.env.development.local
+.env.test.local
+.env.production.local
+.env

@@ -16,10 +16,10 @@ class User(BaseModel):
     sub: str
     email: str | None = None
     roles: list[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
 
 
 def get_settings() -> BaseAppSettings:
-    """Default settings provider; services should override via FastAPI Depends."""
     return BaseAppSettings()
 
 
@@ -30,7 +30,6 @@ def get_current_user(
     ],
     settings: Annotated[BaseAppSettings, Depends(get_settings)],
 ) -> User:
-    """Decode the Bearer JWT and return a User, or raise 401."""
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,8 +63,13 @@ def get_current_user(
     if isinstance(roles, str):
         roles = [roles]
 
+    permissions = payload.get("permissions", [])
+    if isinstance(permissions, str):
+        permissions = [permissions]
+
     return User(
         sub=str(sub),
         email=payload.get("email"),
         roles=list(roles),
+        permissions=list(permissions),
     )
