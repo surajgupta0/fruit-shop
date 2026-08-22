@@ -5,11 +5,22 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, useMutation, useQuery } from "@fruitshop/web-core";
 
-import { RequirePermission } from "@/src/components/RequirePermission";
+import { Can, RequirePermission } from "@/src/components/RequirePermission";
+import { P } from "@/src/console/permissions";
+import {
+  Btn,
+  Field,
+  Input,
+  PageHeader,
+  SectionLabel,
+  Select,
+  StatusPill,
+  Surface,
+} from "@/src/console/ui";
 import { usersApi, type UserRole } from "@/src/modules/users/api";
 
 function UserDetailPanel({ userId }: { userId: string }) {
-  const { hasPermission, user: me } = useAuth();
+  const { hasPermission, hasRole, user: me } = useAuth();
   const detail = useQuery(() => usersApi.get(userId), [userId]);
 
   const [name, setName] = useState("");
@@ -38,7 +49,7 @@ function UserDetailPanel({ userId }: { userId: string }) {
   const savePassword = useMutation(() => usersApi.setPassword(userId, password));
 
   if (detail.isLoading) {
-    return <p className="text-sm text-stone-500">Loading user…</p>;
+    return <p className="text-sm text-[var(--fs-muted)]">Loading user…</p>;
   }
   if (detail.error || !detail.data) {
     return (
@@ -53,48 +64,55 @@ function UserDetailPanel({ userId }: { userId: string }) {
 
   const u = detail.data;
   const isSelf = me?.id === u.id;
+  const canUpdate = hasPermission(P.USERS_UPDATE);
+  const canChangeRole = hasPermission(P.USERS_CHANGE_ROLE);
+  const canDeactivate = hasPermission(P.USERS_DEACTIVATE) && !isSelf;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <Link href="/users" className="text-sm text-stone-500 hover:text-[var(--fs-leaf)]">
-          ← Users
-        </Link>
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-[family-name:var(--font-fraunces)] text-3xl tracking-tight">
-              {u.name}
-            </h1>
-            <p className="mt-1 text-sm text-stone-500 capitalize">
-              {u.role} · {u.is_active ? "Active" : "Inactive"}
-              {isSelf ? " · you" : ""}
-            </p>
-          </div>
-          {hasPermission("users:deactivate") && !isSelf && (
-            <button
-              type="button"
-              disabled={saveStatus.isLoading}
-              onClick={async () => {
-                try {
-                  await saveStatus.mutate(!u.is_active);
-                  await detail.refetch();
-                } catch {
-                  /* toast */
-                }
-              }}
-              className="rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50"
+    <div className="mx-auto max-w-2xl space-y-5">
+      <PageHeader
+        breadcrumb={
+          <Can permission={P.USERS_LIST}>
+            <Link
+              href="/users"
+              className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
             >
-              {u.is_active ? "Deactivate" : "Activate"}
-            </button>
-          )}
-        </div>
-      </div>
+              ← Users
+            </Link>
+          </Can>
+        }
+        title={u.name}
+        description={`${u.role}${isSelf ? " · you" : ""} · ${u.email || u.phone}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tone={u.is_active ? "ok" : "neutral"}>
+              {u.is_active ? "Active" : "Inactive"}
+            </StatusPill>
+            {canDeactivate ? (
+              <Btn
+                variant={u.is_active ? "danger" : "secondary"}
+                disabled={saveStatus.isLoading}
+                onClick={async () => {
+                  try {
+                    await saveStatus.mutate(!u.is_active);
+                    await detail.refetch();
+                  } catch {
+                    /* toast */
+                  }
+                }}
+              >
+                {u.is_active ? "Deactivate" : "Activate"}
+              </Btn>
+            ) : null}
+          </div>
+        }
+      />
 
-      {hasPermission("users:update") && (
-        <section className="rounded-2xl border border-stone-200 bg-white p-5">
-          <h2 className="font-medium">Profile</h2>
+      {canUpdate ? (
+        <Surface padded>
+          <SectionLabel>Profile</SectionLabel>
           <form
-            className="mt-4 space-y-3"
+            className="space-y-3.5"
             onSubmit={async (e) => {
               e.preventDefault();
               try {
@@ -105,49 +123,45 @@ function UserDetailPanel({ userId }: { userId: string }) {
               }
             }}
           >
-            <label className="block text-sm">
-              <span className="text-stone-600">Name</span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-[var(--fs-leaf)]"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-stone-600">Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-[var(--fs-leaf)]"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-stone-600">Phone</span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-[var(--fs-leaf)]"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={saveProfile.isLoading}
-              className="rounded-lg bg-[var(--fs-leaf)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--fs-leaf-deep)] disabled:opacity-60"
-            >
+            <Field label="Name">
+              <Input value={name} onChange={(e) => setName(e.target.value)} required />
+            </Field>
+            <Field label="Email">
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </Field>
+            <Field label="Phone">
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            </Field>
+            <Btn type="submit" disabled={saveProfile.isLoading}>
               {saveProfile.isLoading ? "Saving…" : "Save profile"}
-            </button>
+            </Btn>
           </form>
-        </section>
+        </Surface>
+      ) : (
+        <Surface padded>
+          <SectionLabel>Profile</SectionLabel>
+          <dl className="mt-2 space-y-2 text-sm">
+            <div>
+              <dt className="text-[var(--fs-muted)]">Name</dt>
+              <dd className="font-medium">{u.name}</dd>
+            </div>
+            <div>
+              <dt className="text-[var(--fs-muted)]">Email</dt>
+              <dd>{u.email || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-[var(--fs-muted)]">Phone</dt>
+              <dd>{u.phone}</dd>
+            </div>
+          </dl>
+        </Surface>
       )}
 
-      {hasPermission("users:change_role") && (
-        <section className="rounded-2xl border border-stone-200 bg-white p-5">
-          <h2 className="font-medium">Role</h2>
+      {canChangeRole ? (
+        <Surface padded>
+          <SectionLabel>Role</SectionLabel>
           <form
-            className="mt-4 flex flex-wrap items-end gap-3"
+            className="flex flex-wrap items-end gap-3"
             onSubmit={async (e) => {
               e.preventDefault();
               try {
@@ -158,35 +172,35 @@ function UserDetailPanel({ userId }: { userId: string }) {
               }
             }}
           >
-            <label className="block flex-1 text-sm">
-              <span className="text-stone-600">Assigned role</span>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2"
-              >
-                <option value="customer">Customer</option>
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-            <button
-              type="submit"
-              disabled={saveRole.isLoading}
-              className="rounded-lg border border-stone-200 px-4 py-2 text-sm hover:bg-stone-50 disabled:opacity-60"
-            >
+            <div className="min-w-[160px] flex-1">
+              <Field label="Assigned role">
+                <Select value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
+                  <option value="customer">Customer</option>
+                  <option value="staff">Staff</option>
+                  {hasRole("admin") ? <option value="admin">Admin</option> : null}
+                </Select>
+              </Field>
+            </div>
+            <Btn type="submit" variant="secondary" disabled={saveRole.isLoading}>
               {saveRole.isLoading ? "Updating…" : "Update role"}
-            </button>
+            </Btn>
           </form>
-        </section>
+        </Surface>
+      ) : (
+        <Surface padded>
+          <SectionLabel>Role</SectionLabel>
+          <p className="capitalize text-sm font-medium">{u.role}</p>
+        </Surface>
       )}
 
-      {hasPermission("users:update") && (
-        <section className="rounded-2xl border border-stone-200 bg-white p-5">
-          <h2 className="font-medium">Reset password</h2>
-          <p className="mt-1 text-sm text-stone-500">Minimum 8 characters. For staff/admin login.</p>
+      <Can permission={P.USERS_UPDATE}>
+        <Surface padded>
+          <SectionLabel>Reset password</SectionLabel>
+          <p className="mb-3 text-sm text-[var(--fs-muted)]">
+            Minimum 8 characters. Used for staff/admin email login.
+          </p>
           <form
-            className="mt-4 flex flex-wrap items-end gap-3"
+            className="flex flex-wrap items-end gap-3"
             onSubmit={async (e) => {
               e.preventDefault();
               try {
@@ -197,45 +211,49 @@ function UserDetailPanel({ userId }: { userId: string }) {
               }
             }}
           >
-            <label className="block flex-1 text-sm">
-              <span className="text-stone-600">New password</span>
-              <input
-                type="password"
-                minLength={8}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-[var(--fs-leaf)]"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={savePassword.isLoading}
-              className="rounded-lg border border-stone-200 px-4 py-2 text-sm hover:bg-stone-50 disabled:opacity-60"
-            >
+            <div className="min-w-[180px] flex-1">
+              <Field label="New password">
+                <Input
+                  type="password"
+                  minLength={8}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Field>
+            </div>
+            <Btn type="submit" variant="secondary" disabled={savePassword.isLoading}>
               {savePassword.isLoading ? "Saving…" : "Set password"}
-            </button>
+            </Btn>
           </form>
-        </section>
-      )}
+        </Surface>
+      </Can>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-5">
-        <h2 className="font-medium">Permissions</h2>
-        <p className="mt-3 text-xs leading-relaxed text-stone-500">
-          {u.permissions.length ? u.permissions.join(" · ") : "None"}
-        </p>
-      </section>
+      <Surface padded>
+        <SectionLabel>Effective permissions</SectionLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {u.permissions.map((code) => (
+            <code
+              key={code}
+              className="rounded-md bg-[var(--fs-mist)] px-2 py-1 font-mono text-[11px] text-[var(--fs-leaf-deep)]"
+            >
+              {code}
+            </code>
+          ))}
+          {!u.permissions.length && (
+            <p className="text-sm text-[var(--fs-muted)]">None attached to this role.</p>
+          )}
+        </div>
+      </Surface>
     </div>
   );
 }
 
 export default function UserDetailPage() {
   const params = useParams<{ id: string }>();
-  const userId = params.id;
-
   return (
-    <RequirePermission permission="users:list">
-      <UserDetailPanel userId={userId} />
+    <RequirePermission anyOf={[P.USERS_READ, P.USERS_LIST]}>
+      <UserDetailPanel userId={params.id} />
     </RequirePermission>
   );
 }

@@ -14,6 +14,11 @@ export type AppProvidersProps = {
   loginPath?: string;
   mePath?: string;
   loginApiPath?: string;
+  /**
+   * Called when refresh fails. Default: clear tokens and go to loginPath.
+   * Storefront can keep shoppers on public pages instead of forcing login.
+   */
+  onUnauthorized?: () => void;
 };
 
 /**
@@ -26,18 +31,21 @@ export function AppProviders({
   loginPath = "/login",
   mePath = "/users/me",
   loginApiPath = "/auth/login",
+  onUnauthorized,
 }: AppProvidersProps) {
   useEffect(() => {
     configureApiClient({
       baseUrl: apiBaseUrl,
-      onUnauthorized: () => {
-        tokenStore.clear();
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith(loginPath)) {
-          window.location.assign(loginPath);
-        }
-      },
+      onUnauthorized:
+        onUnauthorized ??
+        (() => {
+          tokenStore.clear();
+          if (typeof window !== "undefined" && !window.location.pathname.startsWith(loginPath)) {
+            window.location.assign(loginPath);
+          }
+        }),
     });
-  }, [apiBaseUrl, loginPath]);
+  }, [apiBaseUrl, loginPath, onUnauthorized]);
 
   return (
     <AuthProvider loginPath={loginPath} mePath={mePath} loginApiPath={loginApiPath}>

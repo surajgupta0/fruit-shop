@@ -3,66 +3,73 @@
 import Link from "next/link";
 import { useAuth } from "@fruitshop/web-core";
 
-const PANELS = [
-  {
-    href: "/users",
-    title: "Users",
-    description: "List staff and customers, create accounts, change roles and status.",
-    permission: "users:list",
-  },
-  {
-    href: "/roles",
-    title: "Roles & access",
-    description: "See which permissions each role grants across the system.",
-    permission: "roles:list",
-  },
-] as const;
+import { visibleNav } from "@/src/console/nav";
+import { PageHeader, SectionLabel, Surface } from "@/src/console/ui";
 
 export default function ConsoleOverviewPage() {
   const { user, hasPermission } = useAuth();
-
-  const panels = PANELS.filter((p) => hasPermission(p.permission));
+  const panels = visibleNav(hasPermission).filter((item) => item.href !== "/");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      <div className="fs-rise">
-        <h1 className="font-[family-name:var(--font-fraunces)] text-3xl tracking-tight text-[var(--fs-ink)]">
-          Overview
-        </h1>
-        <p className="mt-2 text-stone-600">
-          Welcome back, {user?.name}. Use the console to manage accounts and access.
-        </p>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        title={`Hi, ${user?.name?.split(" ")[0] ?? "there"}`}
+        description="Fresh fruit shop console — manage people and access from the sidebar."
+      />
 
-      <div className="fs-rise-delay grid gap-4 sm:grid-cols-2">
-        {panels.map((panel) => (
-          <Link
-            key={panel.href}
-            href={panel.href}
-            className="group block rounded-2xl border border-stone-200/80 bg-white p-5 transition hover:border-[var(--fs-leaf)]/40 hover:shadow-sm"
-          >
-            <h2 className="font-medium text-[var(--fs-ink)] group-hover:text-[var(--fs-leaf)]">
-              {panel.title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-stone-500">{panel.description}</p>
-          </Link>
-        ))}
-        {panels.length === 0 && (
-          <p className="text-sm text-stone-500 sm:col-span-2">
-            Your role doesn’t include user or roles management yet.
-          </p>
-        )}
-      </div>
+      <Surface padded className="border-[var(--fs-leaf)]/15 bg-gradient-to-br from-white to-[var(--fs-mist)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--fs-leaf)]">
+          Fruit Shop
+        </p>
+        <p className="mt-2 font-[family-name:var(--font-fraunces)] text-xl text-[var(--fs-ink)]">
+          Signed in as {user?.role}
+        </p>
+        <p className="mt-1 truncate text-sm text-[var(--fs-muted)]">
+          {user?.email || user?.phone}
+        </p>
+      </Surface>
 
-      <section className="rounded-2xl border border-stone-200/80 bg-white p-5">
-        <h2 className="text-sm font-medium text-stone-500">Your access</h2>
-        <p className="mt-1 text-sm text-stone-700">
-          {user?.role} · {(user?.permissions ?? []).length} permissions
-        </p>
-        <p className="mt-3 text-xs leading-relaxed text-stone-500">
-          {(user?.permissions ?? []).join(" · ") || "No permissions listed"}
-        </p>
+      <section>
+        <SectionLabel>Panels</SectionLabel>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {panels.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group rounded-[var(--fs-radius)] border border-[var(--fs-line)] bg-[var(--fs-surface)] p-4 shadow-[var(--fs-shadow-sm)] transition hover:border-[var(--fs-leaf)]/40 hover:shadow-md"
+            >
+              <h2 className="font-medium text-[var(--fs-ink)] group-hover:text-[var(--fs-leaf)]">
+                {item.label}
+              </h2>
+              <p className="mt-1 text-sm text-[var(--fs-muted)]">{item.description}</p>
+            </Link>
+          ))}
+          {panels.length === 0 && (
+            <Surface padded className="sm:col-span-2">
+              <p className="text-sm text-[var(--fs-muted)]">
+                No panels available for your role yet.
+              </p>
+            </Surface>
+          )}
+        </div>
       </section>
+
+      <Surface padded>
+        <SectionLabel>Your permissions</SectionLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {(user?.permissions ?? []).map((code) => (
+            <code
+              key={code}
+              className="rounded-md bg-[var(--fs-mist)] px-2 py-1 font-mono text-[11px] text-[var(--fs-leaf-deep)]"
+            >
+              {code}
+            </code>
+          ))}
+          {!user?.permissions?.length && (
+            <p className="text-sm text-[var(--fs-muted)]">None listed.</p>
+          )}
+        </div>
+      </Surface>
     </div>
   );
 }

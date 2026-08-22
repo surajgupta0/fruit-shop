@@ -139,7 +139,8 @@ export function AuthProvider({
       verifyOtp,
       logout,
       refreshMe,
-      hasPermission: (permission) => Boolean(user?.permissions?.includes(permission)),
+      hasPermission: (permission) =>
+        Boolean(user?.permissions?.some((p) => p === permission)),
       hasRole: (...roles) => Boolean(user && roles.includes(user.role)),
     }),
     [user, bootstrapping, login, requestOtp, verifyOtp, logout, refreshMe],

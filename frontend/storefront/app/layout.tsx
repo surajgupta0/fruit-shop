@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s · Fruit Shop",
   },
   description:
-    "Order farm-fresh fruit online. Seasonal picks, organic options, and doorstep delivery.",
+    "Order farm-fresh fruit online. Seasonal picks, exotic finds, and phone OTP checkout.",
   openGraph: {
     title: "Fruit Shop",
     description: "Farm-fresh fruit, delivered to your door.",
