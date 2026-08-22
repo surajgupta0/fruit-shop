@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --fs-ink: #14241a;
+  --fs-leaf: #1f6a45;
+  --fs-leaf-deep: #0f3d28;
+  --fs-citrus: #e8a317;
+  --fs-mist: #eef6f0;
+  --fs-cream: #f7faf7;
+  --background: var(--fs-cream);
+  --foreground: var(--fs-ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-fs-ink: var(--fs-ink);
+  --color-fs-leaf: var(--fs-leaf);
+  --color-fs-leaf-deep: var(--fs-leaf-deep);
+  --color-fs-citrus: var(--fs-citrus);
+  --color-fs-mist: var(--fs-mist);
+  --font-sans: var(--font-outfit);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+@keyframes fs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fs-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+.fs-rise {
+  animation: fs-rise 0.55s ease-out both;
+}
+
+.fs-rise-delay {
+  animation: fs-rise 0.65s ease-out 0.12s both;
+}
+
+.fs-drift {
+  animation: fs-drift 8s ease-in-out infinite;
 }

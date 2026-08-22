@@ -1,13 +1,24 @@
-"use client";
-
+import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import LoginPage from "./LoginForm";
+import { AdminLoginForm } from "./LoginForm";
 
-export default function Page() {
+export const metadata: Metadata = {
+  title: "Staff sign in",
+  description: "Secure sign-in for Fruit Shop administrators and staff.",
+  robots: { index: false, follow: false },
+};
+
+export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-stone-500">Loading…</div>}>
-      <LoginPage />
+    <Suspense
+      fallback={
+        <div className="grid min-h-screen place-items-center text-sm text-[var(--fs-leaf)]">
+          Loading…
+        </div>
+      }
+    >
+      <AdminLoginForm />
     </Suspense>
   );
 }

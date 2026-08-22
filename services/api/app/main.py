@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fruitshop_shared.db import create_session_factory
 from fruitshop_shared.logging import configure_logging
 
@@ -44,8 +45,22 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+def _cors_origins() -> list[str]:
+    settings = get_settings()
+    return [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="fruit-shop-api", version="0.1.0", lifespan=lifespan)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
 
     for router in ROUTERS:
         app.include_router(router)

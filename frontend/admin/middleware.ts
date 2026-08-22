@@ -4,7 +4,7 @@ import { shouldAllowRequest } from "@fruitshop/web-core";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const result = shouldAllowRequest(pathname, request.headers.get("cookie"), {
-    publicPaths: ["/login", "/_next", "/favicon.ico"],
+    publicPaths: ["/login", "/signup", "/_next", "/favicon.ico"],
     loginPath: "/login",
   });
 
@@ -15,8 +15,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Already logged in visiting /login → send to dashboard
-  if (pathname === "/login" && shouldAllowRequest("/dashboard", request.headers.get("cookie")).allow) {
+  // Already logged in visiting auth pages → dashboard
+  if (
+    (pathname === "/login" || pathname === "/signup") &&
+    shouldAllowRequest("/", request.headers.get("cookie")).allow
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
