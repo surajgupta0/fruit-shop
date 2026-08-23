@@ -225,6 +225,7 @@ export const catalogApi = {
     name: string;
     slug?: string;
     description?: string;
+    image_url?: string;
     parent_id?: string | null;
     sort_order?: number;
     is_active?: boolean;
