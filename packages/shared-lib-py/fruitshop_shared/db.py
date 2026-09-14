@@ -22,6 +22,8 @@ def build_ssl_connect_args(settings: BaseAppSettings) -> dict[str, Any]:
     - require: encrypt, skip cert verify (no CA)
     - verify-ca / verify-full: encrypt + verify using DB_SSL_CA when set
     """
+    import os
+
     if not settings.db_ssl_enabled:
         return {}
 
@@ -29,6 +31,12 @@ def build_ssl_connect_args(settings: BaseAppSettings) -> dict[str, Any]:
     ca_path = (getattr(settings, "DB_SSL_CA", None) or "").strip()
 
     if ca_path:
+        if not os.path.isfile(ca_path):
+            raise FileNotFoundError(
+                f"DB_SSL_CA file not found: {ca_path}. "
+                "On Render, upload Secret File aiven-ca.pem and set "
+                "DB_SSL_CA=/etc/secrets/aiven-ca.pem"
+            )
         ctx = ssl.create_default_context(cafile=ca_path)
         # Aiven project CA verifies the server cert; hostname often doesn't match CN
         if mode != "verify-full":
