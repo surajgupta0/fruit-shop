@@ -12,7 +12,7 @@ function FruitMark({ size = "md" }: { size?: "sm" | "md" }) {
   const dim = size === "sm" ? "size-8 text-sm" : "size-9 text-base";
   return (
     <div
-      className={`fs-brand-mark grid ${dim} shrink-0 place-items-center rounded-xl font-[family-name:var(--font-fraunces)] font-semibold text-white`}
+      className={`fs-brand-mark grid ${dim} shrink-0 place-items-center rounded-xl font-[family-name:var(--font-display)] font-semibold`}
       aria-hidden
     >
       <svg viewBox="0 0 24 24" className="size-[1.15em]" fill="currentColor">
@@ -46,7 +46,7 @@ function SidebarBody({
           <Link
             href="/"
             onClick={onNavigate}
-            className="block truncate font-[family-name:var(--font-fraunces)] text-lg leading-none tracking-tight text-white"
+            className="block truncate font-[family-name:var(--font-display)] text-lg leading-none tracking-tight text-white"
           >
             Fruit Shop
           </Link>

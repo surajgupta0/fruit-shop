@@ -15,7 +15,7 @@ export function PageHeader({
     <div className="fs-rise mb-7 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {breadcrumb}
-        <h1 className="font-[family-name:var(--font-fraunces)] text-[1.75rem] leading-tight tracking-tight text-[var(--fs-ink)] sm:text-[2rem]">
+        <h1 className="font-[family-name:var(--font-display)] text-[1.75rem] leading-tight tracking-tight text-[var(--fs-ink)] sm:text-[2rem]">
           {title}
         </h1>
         {description ? (
@@ -200,7 +200,7 @@ export function PageLoader({
       <div className="flex size-14 items-center justify-center rounded-2xl border border-[var(--fs-line)] bg-white shadow-[var(--fs-shadow-sm)]">
         <Spinner className="size-6" />
       </div>
-      <p className="mt-5 font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--fs-ink)]">
+      <p className="mt-5 font-[family-name:var(--font-display)] text-xl tracking-tight text-[var(--fs-ink)]">
         {title}
       </p>
       <p className="mt-2 text-sm leading-relaxed text-[var(--fs-muted)]">{detail}</p>
@@ -242,7 +242,7 @@ export function AlertBanner({
   const styles = {
     ok: "border-[var(--fs-ok)]/25 bg-[var(--fs-ok-bg)] text-[var(--fs-ok)]",
     warn: "border-[var(--fs-warn)]/30 bg-[var(--fs-warn-bg)] text-[var(--fs-warn)]",
-    danger: "border-rose-200 bg-rose-50 text-rose-800",
+    danger: "border-[var(--fs-danger)]/25 bg-[var(--fs-danger-bg)] text-[var(--fs-danger)]",
     info: "border-[var(--fs-leaf)]/25 bg-[var(--fs-leaf)]/5 text-[var(--fs-leaf-deep)]",
     neutral: "border-[var(--fs-line)] bg-[var(--fs-mist)]/50 text-[var(--fs-ink)]",
   };

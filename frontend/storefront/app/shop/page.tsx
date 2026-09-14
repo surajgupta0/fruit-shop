@@ -57,22 +57,18 @@ function ShopPanel() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8 overflow-hidden rounded-[1.5rem] bg-[linear-gradient(125deg,#fff0e8_0%,#ffe4ef_45%,#e8f8ff_100%)] px-6 py-8 sm:px-8">
-        <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[var(--fs-leaf)]">
-          Catalog
-        </p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight sm:text-5xl">
-          Shop fruit
-        </h1>
-        <p className="mt-2 max-w-lg text-sm font-medium text-[var(--fs-muted)]">
-          Filter by category, tag, organic, or search — find something juicy.
+      <div className="mb-8">
+        <p className="fs-eyebrow">Catalog</p>
+        <h1 className="fs-section-title mt-1 text-3xl sm:text-4xl">Shop fresh fruit</h1>
+        <p className="mt-2 text-sm text-[var(--fs-muted)]">
+          Filter by category, tag, or organic — find what’s ripe today.
         </p>
       </div>
 
       <div className="mb-6 flex flex-col gap-4 lg:flex-row">
-        <aside className="w-full shrink-0 space-y-5 rounded-[1.25rem] border border-[var(--fs-line)] bg-white p-4 shadow-[var(--fs-shadow-sm)] lg:w-56">
+        <aside className="w-full shrink-0 space-y-5 rounded-[var(--fs-radius)] border border-[var(--fs-line)] bg-white p-4 shadow-[var(--fs-shadow-sm)] lg:w-56">
           <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
               Categories
             </p>
             <ul className="mt-2 space-y-1 text-sm">
@@ -80,10 +76,10 @@ function ShopPanel() {
                 <button
                   type="button"
                   onClick={() => setFilter({ category: null })}
-                  className={`block w-full rounded-xl px-2.5 py-2 text-left font-semibold ${
+                  className={`block w-full rounded-lg px-2.5 py-1.5 text-left ${
                     !categoryId
-                      ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
-                      : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]/60"
+                      ? "bg-[var(--fs-mist)] font-medium text-[var(--fs-leaf-deep)]"
+                      : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]/70"
                   }`}
                 >
                   All
@@ -94,10 +90,10 @@ function ShopPanel() {
                   <button
                     type="button"
                     onClick={() => setFilter({ category: c.id })}
-                    className={`block w-full rounded-xl px-2.5 py-2 text-left font-semibold ${
+                    className={`block w-full rounded-lg px-2.5 py-1.5 text-left ${
                       categoryId === c.id
-                        ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
-                        : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]/60"
+                        ? "bg-[var(--fs-mist)] font-medium text-[var(--fs-leaf-deep)]"
+                        : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]/70"
                     }`}
                   >
                     {c.name}
@@ -109,16 +105,16 @@ function ShopPanel() {
 
           {(tags.data?.length ?? 0) > 0 && (
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
                 Tags
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setFilter({ tag: null })}
-                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     !tag
-                      ? "bg-[var(--fs-leaf)] text-white"
+                      ? "bg-[var(--fs-leaf-deep)] text-white"
                       : "bg-white text-[var(--fs-muted)] ring-1 ring-[var(--fs-line)]"
                   }`}
                 >
@@ -129,9 +125,9 @@ function ShopPanel() {
                     key={t.id}
                     type="button"
                     onClick={() => setFilter({ tag: t.slug })}
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                       tag === t.slug
-                        ? "bg-[var(--fs-berry)] text-white"
+                        ? "bg-[var(--fs-leaf-deep)] text-white"
                         : "bg-white text-[var(--fs-muted)] ring-1 ring-[var(--fs-line)]"
                     }`}
                   >
@@ -142,7 +138,7 @@ function ShopPanel() {
             </div>
           )}
 
-          <div className="space-y-2 text-sm font-semibold">
+          <div className="space-y-2 text-sm">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -176,11 +172,11 @@ function ShopPanel() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search mango, cherry, coconut…"
-                className="w-full rounded-2xl border border-[var(--fs-line)] bg-white px-4 py-3 text-sm font-medium outline-none focus:border-[var(--fs-leaf)] focus:ring-2 focus:ring-[var(--fs-leaf)]/15"
+                className="w-full rounded-xl border border-[var(--fs-line)] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[var(--fs-leaf)] focus:ring-2 focus:ring-[var(--fs-leaf)]/15"
               />
               <button
                 type="submit"
-                className="rounded-2xl bg-[var(--fs-leaf)] px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-[var(--fs-leaf-deep)]"
+                className="rounded-xl bg-[var(--fs-leaf)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--fs-leaf-deep)]"
               >
                 Search
               </button>
@@ -188,26 +184,26 @@ function ShopPanel() {
           </form>
 
           {(categoryId || tag || featured || organic || searchParams.get("q")) && (
-            <p className="mb-4 text-sm font-medium text-[var(--fs-muted)]">
+            <p className="mb-4 text-sm text-[var(--fs-muted)]">
               Showing filtered results
               {list.data ? ` · ${list.data.total} found` : ""}
               {" · "}
-              <Link href="/shop" className="font-bold text-[var(--fs-leaf)] hover:underline">
+              <Link href="/shop" className="font-semibold text-[var(--fs-leaf)] hover:underline">
                 Clear filters
               </Link>
             </p>
           )}
 
-          {list.isLoading && <p className="text-sm font-medium text-[var(--fs-muted)]">Loading…</p>}
+          {list.isLoading && <p className="text-sm text-[var(--fs-muted)]">Loading…</p>}
           {list.error && (
-            <p className="rounded-2xl bg-[#fde8ef] px-4 py-3 text-sm font-semibold text-[var(--fs-berry)]">
+            <p className="rounded-[var(--fs-radius)] bg-[var(--fs-danger-bg)] px-4 py-3 text-sm text-[var(--fs-danger)]">
               {list.error.message}
             </p>
           )}
           {list.data && <ProductGrid products={list.data.items} />}
 
           {list.data && totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between text-sm font-medium text-[var(--fs-muted)]">
+            <div className="mt-6 flex items-center justify-between text-sm text-[var(--fs-muted)]">
               <span>
                 Page {page} of {totalPages}
               </span>
@@ -215,7 +211,7 @@ function ShopPanel() {
                 <button
                   type="button"
                   disabled={page <= 1}
-                  className="rounded-xl border border-[var(--fs-line)] bg-white px-3 py-1.5 font-semibold disabled:opacity-40"
+                  className="rounded-lg border border-[var(--fs-line)] bg-white px-3 py-1.5 disabled:opacity-40"
                   onClick={() => setFilter({ page: String(page - 1) })}
                 >
                   Prev
@@ -223,7 +219,7 @@ function ShopPanel() {
                 <button
                   type="button"
                   disabled={page >= totalPages}
-                  className="rounded-xl border border-[var(--fs-line)] bg-white px-3 py-1.5 font-semibold disabled:opacity-40"
+                  className="rounded-lg border border-[var(--fs-line)] bg-white px-3 py-1.5 disabled:opacity-40"
                   onClick={() => setFilter({ page: String(page + 1) })}
                 >
                   Next
