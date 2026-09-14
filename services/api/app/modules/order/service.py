@@ -279,6 +279,7 @@ async def cancel_my_order(
         stamp_update(payment, aid)
 
     await session.flush()
+    await session.refresh(order, attribute_names=["items"])
     return _to_order_response(order)
 
 
@@ -354,4 +355,5 @@ async def update_order_admin(
 
     stamp_update(order, aid)
     await session.flush()
+    await session.refresh(order, attribute_names=["items"])
     return _to_order_response(order)
