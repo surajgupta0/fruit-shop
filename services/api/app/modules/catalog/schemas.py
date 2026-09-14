@@ -439,6 +439,8 @@ class ProductSummaryResponse(AuditFields):
     max_price: Decimal | None = None
     in_stock: bool = False
     total_stock: int = 0
+    average_rating: Decimal = Decimal("0.00")
+    review_count: int = 0
     tag_slugs: list[str] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
@@ -488,6 +490,11 @@ class ProductDetailResponse(AuditFields):
     images: list[ProductImageResponse] = Field(default_factory=list)
     variants: list[ProductVariantResponse] = Field(default_factory=list)
     relations: list[ProductRelationResponse] = Field(default_factory=list)
+    average_rating: Decimal = Decimal("0.00")
+    review_count: int = 0
+    rating_breakdown: dict[int, int] = Field(
+        default_factory=lambda: {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    )
 
     model_config = {"from_attributes": True}
 

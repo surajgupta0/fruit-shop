@@ -21,6 +21,7 @@ ORDERS_MANAGE = "orders:manage"
 ORDERS_READ = "orders:read"
 COUPONS_MANAGE = "coupons:manage"
 NOTIFICATIONS_READ = "notifications:read"
+REVIEWS_MANAGE = "reviews:manage"
 
 ALL_PERMISSIONS: list[tuple[str, str]] = [
     (USERS_READ_SELF, "View own profile"),
@@ -39,6 +40,7 @@ ALL_PERMISSIONS: list[tuple[str, str]] = [
     (ORDERS_READ, "Read orders"),
     (COUPONS_MANAGE, "Manage coupons"),
     (NOTIFICATIONS_READ, "Read notification logs"),
+    (REVIEWS_MANAGE, "Moderate product reviews"),
 ]
 
 ROLE_PERMISSIONS: dict[str, list[str]] = {
@@ -58,6 +60,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         ORDERS_READ,
         COUPONS_MANAGE,
         NOTIFICATIONS_READ,
+        REVIEWS_MANAGE,
     ],
     "admin": [code for code, _ in ALL_PERMISSIONS],
 }

@@ -3,6 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+from decimal import Decimal
+
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,8 @@ from app.core.mixins import stamp_create, stamp_update
 from app.modules.inventory.models import InventoryReferenceType
 from app.modules.inventory.service import available_qty, record_opening_stock, set_stock
 from app.modules.inventory.schemas import InventorySetRequest
+from app.modules.review.schemas import ProductRatingSummary
+from app.modules.review.service import rating_summaries_for_products, product_rating_summary
 from app.modules.catalog.models import (
     Brand,
     Category,
@@ -425,7 +429,11 @@ def _image_response(i: ProductImage) -> ProductImageResponse:
     return data
 
 
-def to_summary(product: Product) -> ProductSummaryResponse:
+def to_summary(
+    product: Product,
+    *,
+    rating: ProductRatingSummary | None = None,
+) -> ProductSummaryResponse:
     active_variants = [v for v in product.variants if v.is_active]
     prices = [v.price for v in active_variants]
     total_stock = sum(available_qty(v) for v in active_variants)
@@ -460,6 +468,8 @@ def to_summary(product: Product) -> ProductSummaryResponse:
         max_price=max(prices) if prices else None,
         in_stock=in_stock,
         total_stock=total_stock,
+        average_rating=rating.average_rating if rating else Decimal("0.00"),
+        review_count=rating.review_count if rating else 0,
         tag_slugs=[t.slug for t in product.tags],
         created_at=product.created_at,
         updated_at=product.updated_at,
@@ -468,7 +478,11 @@ def to_summary(product: Product) -> ProductSummaryResponse:
     )
 
 
-def to_detail(product: Product) -> ProductDetailResponse:
+def to_detail(
+    product: Product,
+    *,
+    rating: ProductRatingSummary | None = None,
+) -> ProductDetailResponse:
     relations: list[ProductRelationResponse] = []
     for rel in product.relations_from:
         related = rel.related_product
@@ -545,11 +559,22 @@ def to_detail(product: Product) -> ProductDetailResponse:
         images=[_image_response(i) for i in product.images],
         variants=[_variant_response(v) for v in product.variants],
         relations=relations,
+        average_rating=rating.average_rating if rating else Decimal("0.00"),
+        review_count=rating.review_count if rating else 0,
+        rating_breakdown=rating.rating_breakdown if rating else {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
         created_at=product.created_at,
         updated_at=product.updated_at,
         created_by=product.created_by,
         updated_by=product.updated_by,
     )
+
+
+async def _detail_with_ratings(
+    product: Product,
+    session: AsyncSession,
+) -> ProductDetailResponse:
+    rating = await product_rating_summary(product.id, session)
+    return to_detail(product, rating=rating)
 
 
 # ---------- products ----------
@@ -797,7 +822,7 @@ async def delete_product(product_id: str, session: AsyncSession) -> None:
 
 
 async def get_product(product_id: str, session: AsyncSession) -> ProductDetailResponse:
-    return to_detail(await _get_product(product_id, session))
+    return await _detail_with_ratings(await _get_product(product_id, session), session)
 
 
 async def get_product_by_slug(
@@ -812,7 +837,7 @@ async def get_product_by_slug(
         or product.visibility == ProductVisibility.hidden
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
-    return to_detail(product)
+    return await _detail_with_ratings(product, session)
 
 
 async def list_products(
@@ -900,8 +925,10 @@ async def list_products(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
+    products = list(result.scalars().unique().all())
+    ratings = await rating_summaries_for_products([p.id for p in products], session)
     return ProductListResponse(
-        items=[to_summary(p) for p in result.scalars().unique().all()],
+        items=[to_summary(p, rating=ratings.get(p.id)) for p in products],
         total=total,
         page=page,
         page_size=page_size,

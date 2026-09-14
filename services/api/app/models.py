@@ -19,6 +19,7 @@ from app.modules.inventory.models import InventoryMovement  # noqa: F401
 from app.modules.notification.models import NotificationLog  # noqa: F401
 from app.modules.order.models import Order, OrderItem, OrderStatusEvent  # noqa: F401
 from app.modules.payment.models import Payment  # noqa: F401
+from app.modules.review.models import Review  # noqa: F401
 from app.modules.users.models import Permission, Role, RolePermission  # noqa: F401
 
 __all__ = [
@@ -52,4 +53,5 @@ __all__ = [
     "OrderItem",
     "OrderStatusEvent",
     "Payment",
+    "Review",
 ]
