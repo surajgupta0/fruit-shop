@@ -243,3 +243,52 @@ async def test_order_status_notifications_logged(client, admin_token, session_fa
     assert "order_confirmed" in events
     assert "order_shipped" in events
     assert any(row["channel"] == "sms" for row in logs.json()["items"])
+
+
+@pytest.mark.asyncio
+async def test_available_coupons_for_cart(client, admin_token, session_factory):
+    admin = {"Authorization": f"Bearer {admin_token}"}
+    await client.post(
+        "/coupons/admin",
+        headers=admin,
+        json={
+            "code": "LIST10",
+            "name": "Listable 10%",
+            "discount_type": "percent",
+            "percent_off": "10",
+            "min_subtotal": "0",
+            "is_active": True,
+        },
+    )
+    await client.post(
+        "/coupons/admin",
+        headers=admin,
+        json={
+            "code": "BIGCART",
+            "name": "Needs big cart",
+            "discount_type": "fixed",
+            "amount_off": "100",
+            "min_subtotal": "5000",
+            "is_active": True,
+        },
+    )
+
+    variant_id = await _seed_product(session_factory, sku="AVAIL-1")
+    token = await _customer_token(client, phone="+919877000099")
+    cust = {"Authorization": f"Bearer {token}"}
+    await client.post(
+        "/cart/items",
+        headers=cust,
+        json={"variant_id": variant_id, "quantity": 1},
+    )
+
+    available = await client.get("/coupons/available", headers=cust)
+    assert available.status_code == 200, available.text
+    body = available.json()
+    codes = {item["code"]: item for item in body["items"]}
+    assert "LIST10" in codes
+    assert codes["LIST10"]["applicable"] is True
+    assert codes["LIST10"]["estimated_discount"] == "50.00"
+    assert "BIGCART" in codes
+    assert codes["BIGCART"]["applicable"] is False
+    assert "₹5000" in (codes["BIGCART"]["reason"] or "")

@@ -214,7 +214,7 @@ export default function CartPage() {
                 </div>
               </dl>
               <p className="mt-3 text-xs text-[var(--fs-muted)]">
-                Free shipping on orders ₹999+. Apply a coupon at checkout.
+                Free shipping on orders ₹999+. Available coupons show at checkout.
               </p>
               <button
                 type="button"

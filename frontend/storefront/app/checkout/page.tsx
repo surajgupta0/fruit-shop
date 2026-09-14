@@ -13,7 +13,11 @@ import {
   ordersApi,
   type PaymentMethod,
 } from "@/src/modules/orders/api";
-import { couponsApi, type CouponValidateResponse } from "@/src/modules/coupons/api";
+import {
+  couponOfferLabel,
+  couponsApi,
+  type CouponValidateResponse,
+} from "@/src/modules/coupons/api";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -21,6 +25,11 @@ export default function CheckoutPage() {
 
   const cart = useQuery(() => cartApi.get(), [], { enabled: isAuthenticated });
   const addresses = useQuery(() => addressApi.list(), [], { enabled: isAuthenticated });
+  const availableCoupons = useQuery(
+    () => couponsApi.listAvailable(),
+    [cart.data?.subtotal, cart.data?.item_count],
+    { enabled: isAuthenticated && Boolean(cart.data?.items?.length) },
+  );
 
   const [addressId, setAddressId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
@@ -258,12 +267,93 @@ export default function CheckoutPage() {
               <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
                 <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Coupon</h2>
                 <p className="mt-1 text-xs text-[var(--fs-muted)]">
-                  Optional discount code for this order
+                  Pick an available offer or enter a code
                 </p>
+
+                {availableCoupons.isLoading && (
+                  <p className="mt-4 text-sm text-[var(--fs-muted)]">Loading offers…</p>
+                )}
+                {availableCoupons.data && availableCoupons.data.items.length > 0 && (
+                  <ul className="mt-4 space-y-2">
+                    {availableCoupons.data.items.map((offer) => {
+                      const selected =
+                        appliedCoupon?.valid &&
+                        appliedCoupon.code.toUpperCase() === offer.code.toUpperCase();
+                      return (
+                        <li
+                          key={offer.code}
+                          className={`rounded-xl border p-3 transition ${
+                            selected
+                              ? "border-[var(--fs-leaf)] bg-[var(--fs-mist)]/60"
+                              : "border-[var(--fs-line)] bg-[var(--fs-mist)]/20"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-mono text-sm font-semibold tracking-wide text-[var(--fs-leaf-deep)]">
+                                {offer.code}
+                              </p>
+                              <p className="mt-0.5 text-sm font-medium text-[var(--fs-ink)]">
+                                {offer.name}
+                                <span className="ml-2 text-xs font-normal text-[var(--fs-muted)]">
+                                  {couponOfferLabel(offer)}
+                                </span>
+                              </p>
+                              {offer.description && (
+                                <p className="mt-1 text-xs text-[var(--fs-muted)]">
+                                  {offer.description}
+                                </p>
+                              )}
+                              {offer.applicable ? (
+                                Number(offer.estimated_discount) > 0 ? (
+                                  <p className="mt-1 text-xs text-[var(--fs-leaf-deep)]">
+                                    Save {formatMoney(offer.estimated_discount)} on this cart
+                                  </p>
+                                ) : offer.discount_type === "free_shipping" ? (
+                                  <p className="mt-1 text-xs text-[var(--fs-leaf-deep)]">
+                                    Free shipping on this cart
+                                  </p>
+                                ) : null
+                              ) : (
+                                <p className="mt-1 text-xs text-amber-700">
+                                  {offer.reason || "Not available for this cart"}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              disabled={
+                                !offer.applicable || applyCoupon.isLoading || Boolean(selected)
+                              }
+                              className="shrink-0 rounded-full bg-[var(--fs-leaf-deep)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--fs-leaf)] disabled:opacity-40"
+                              onClick={async () => {
+                                try {
+                                  await applyCoupon.mutate(offer.code);
+                                  await availableCoupons.refetch();
+                                } catch {
+                                  setAppliedCoupon(null);
+                                  setCouponError("Could not apply coupon");
+                                }
+                              }}
+                            >
+                              {selected ? "Applied" : "Apply"}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {availableCoupons.data && availableCoupons.data.items.length === 0 && (
+                  <p className="mt-4 text-sm text-[var(--fs-muted)]">
+                    No public offers right now — you can still enter a code below.
+                  </p>
+                )}
+
                 <div className="mt-4 flex flex-wrap gap-2">
                   <input
                     className="min-w-[160px] flex-1 rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm uppercase outline-none focus:border-[var(--fs-leaf)]"
-                    placeholder="FRESH10"
+                    placeholder="Have a code?"
                     value={couponInput}
                     onChange={(e) => {
                       setCouponInput(e.target.value.toUpperCase());
@@ -277,6 +367,7 @@ export default function CheckoutPage() {
                     onClick={async () => {
                       try {
                         await applyCoupon.mutate(couponInput.trim());
+                        await availableCoupons.refetch();
                       } catch {
                         setAppliedCoupon(null);
                         setCouponError("Could not apply coupon");
@@ -301,7 +392,8 @@ export default function CheckoutPage() {
                 </div>
                 {appliedCoupon?.valid && (
                   <p className="mt-2 text-sm text-[var(--fs-leaf-deep)]">
-                    {appliedCoupon.code} applied — you save {formatMoney(appliedCoupon.discount_amount)}
+                    {appliedCoupon.code} applied — you save{" "}
+                    {formatMoney(appliedCoupon.discount_amount)}
                     {appliedCoupon.discount_type === "free_shipping" ? " (free shipping)" : ""}
                   </p>
                 )}

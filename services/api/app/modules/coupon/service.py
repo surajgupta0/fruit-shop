@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.mixins import stamp_create, stamp_update
 from app.modules.coupon.models import Coupon, CouponRedemption, DiscountType
 from app.modules.coupon.schemas import (
+    AvailableCouponListResponse,
+    AvailableCouponOffer,
     CouponCreate,
     CouponListResponse,
     CouponResponse,
@@ -374,6 +376,105 @@ async def validate_for_user_cart(
         total=total,
         message="Coupon applied",
     )
+
+
+async def _eligibility_reason(
+    coupon: Coupon,
+    *,
+    user_id: uuid.UUID,
+    subtotal: Decimal,
+    session: AsyncSession,
+) -> str | None:
+    """Return a customer-facing reason when the coupon cannot be used, else None."""
+    now = _utcnow()
+    if not coupon.is_active:
+        return "Coupon is inactive"
+    if coupon.starts_at and _as_utc(coupon.starts_at) > now:
+        return "Coupon is not active yet"
+    if coupon.ends_at and _as_utc(coupon.ends_at) < now:
+        return "Coupon has expired"
+    if coupon.usage_limit is not None and coupon.usage_count >= coupon.usage_limit:
+        return "Coupon usage limit reached"
+    if subtotal < Decimal(str(coupon.min_subtotal or 0)):
+        return f"Add ₹{coupon.min_subtotal} to your cart to unlock"
+    if coupon.first_order_only:
+        prior = await _user_order_count(user_id, session)
+        if prior > 0:
+            return "First order only"
+    if coupon.per_user_limit is not None:
+        used = await _user_redemption_count(coupon.id, user_id, session)
+        if used >= coupon.per_user_limit:
+            return "You have already used this coupon"
+    return None
+
+
+async def list_available_for_user_cart(
+    *,
+    user_id: str,
+    lines: list[PricedLine],
+    session: AsyncSession,
+) -> AvailableCouponListResponse:
+    uid = _parse_uuid(user_id, label="user id")
+    subtotal, tax, shipping, total = cart_totals(lines)
+    now = _utcnow()
+
+    rows = (
+        await session.execute(
+            select(Coupon)
+            .where(Coupon.is_active.is_(True))
+            .order_by(Coupon.created_at.desc())
+            .limit(50)
+        )
+    ).scalars().all()
+
+    offers: list[AvailableCouponOffer] = []
+    for coupon in rows:
+        # Hide fully expired / not-yet-started from the browse list
+        if coupon.starts_at and _as_utc(coupon.starts_at) > now:
+            continue
+        if coupon.ends_at and _as_utc(coupon.ends_at) < now:
+            continue
+        if coupon.usage_limit is not None and coupon.usage_count >= coupon.usage_limit:
+            continue
+
+        reason = await _eligibility_reason(
+            coupon, user_id=uid, subtotal=subtotal, session=session
+        )
+        estimated_discount = Decimal("0")
+        estimated_shipping: Decimal | None = shipping
+        estimated_total: Decimal | None = total
+        applicable = reason is None
+        if applicable:
+            discount, ship, _free = compute_discount(
+                coupon, subtotal=subtotal, tax_amount=tax
+            )
+            estimated_discount = discount
+            estimated_shipping = ship
+            estimated_total = _money(max(Decimal("0"), subtotal + tax + ship - discount))
+
+        offers.append(
+            AvailableCouponOffer(
+                code=coupon.code,
+                name=coupon.name,
+                description=coupon.description,
+                discount_type=coupon.discount_type,
+                percent_off=coupon.percent_off,
+                amount_off=coupon.amount_off,
+                max_discount=coupon.max_discount,
+                min_subtotal=coupon.min_subtotal,
+                first_order_only=coupon.first_order_only,
+                ends_at=coupon.ends_at,
+                applicable=applicable,
+                reason=reason,
+                estimated_discount=estimated_discount,
+                estimated_shipping=estimated_shipping,
+                estimated_total=estimated_total,
+            )
+        )
+
+    # Applicable first, then largest estimated savings
+    offers.sort(key=lambda o: (not o.applicable, -float(o.estimated_discount)))
+    return AvailableCouponListResponse(items=offers, cart_subtotal=subtotal)
 
 
 # silence unused import warnings for threshold constants used by docs/consumers

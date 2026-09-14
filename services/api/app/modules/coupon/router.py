@@ -9,6 +9,7 @@ from app.core.schemas import ModuleHealthResponse
 from app.modules.cart import service as cart_service
 from app.modules.coupon import service as coupon_service
 from app.modules.coupon.schemas import (
+    AvailableCouponListResponse,
     CouponCreate,
     CouponListResponse,
     CouponResponse,
@@ -26,6 +27,24 @@ router = APIRouter(prefix="/coupons", tags=["coupon"])
 @router.get("/health", response_model=ModuleHealthResponse)
 def health() -> ModuleHealthResponse:
     return ModuleHealthResponse(module="coupon")
+
+
+@router.get("/available", response_model=AvailableCouponListResponse)
+async def list_available_coupons(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AvailableCouponListResponse:
+    """Active offers for the signed-in shopper, scored against the current cart."""
+    cart = await cart_service.get_cart_model(user.sub, session)
+    lines = []
+    for item in cart.items:
+        variant, product = await load_variant_bundle(item.variant_id, session)
+        lines.append(price_line(product, variant, item.quantity))
+    return await coupon_service.list_available_for_user_cart(
+        user_id=user.sub,
+        lines=lines,
+        session=session,
+    )
 
 
 @router.post("/validate", response_model=CouponValidateResponse)

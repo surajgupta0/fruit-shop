@@ -101,3 +101,26 @@ class CouponValidateResponse(BaseModel):
     tax_amount: Decimal
     total: Decimal
     message: str | None = None
+
+
+class AvailableCouponOffer(BaseModel):
+    code: str
+    name: str
+    description: str | None = None
+    discount_type: DiscountType | str
+    percent_off: Decimal | None = None
+    amount_off: Decimal | None = None
+    max_discount: Decimal | None = None
+    min_subtotal: Decimal
+    first_order_only: bool
+    ends_at: datetime | None = None
+    applicable: bool
+    reason: str | None = None
+    estimated_discount: Decimal = Decimal("0")
+    estimated_shipping: Decimal | None = None
+    estimated_total: Decimal | None = None
+
+
+class AvailableCouponListResponse(BaseModel):
+    items: list[AvailableCouponOffer]
+    cart_subtotal: Decimal
