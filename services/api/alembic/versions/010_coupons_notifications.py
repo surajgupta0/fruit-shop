@@ -131,11 +131,15 @@ def upgrade() -> None:
     ]
     for code, description in perms:
         pid = uuid.uuid4()
+        # Cast binds explicitly — asyncpg rejects the same :code as both text and varchar.
         conn.execute(
             sa.text(
                 "INSERT INTO permissions (id, code, description, created_at, updated_at) "
-                "SELECT CAST(:id AS uuid), :code, :description, now(), now() "
-                "WHERE NOT EXISTS (SELECT 1 FROM permissions WHERE code = :code)"
+                "SELECT CAST(:id AS uuid), CAST(:code AS varchar), CAST(:description AS varchar), "
+                "now(), now() "
+                "WHERE NOT EXISTS ("
+                "  SELECT 1 FROM permissions WHERE code = CAST(:code AS varchar)"
+                ")"
             ),
             {"id": str(pid), "code": code, "description": description},
         )
@@ -147,7 +151,7 @@ def upgrade() -> None:
                     "INSERT INTO role_permissions (id, role_id, permission_id, created_at, updated_at) "
                     "SELECT CAST(:id AS uuid), r.id, p.id, now(), now() "
                     "FROM roles r, permissions p "
-                    "WHERE r.name = :role AND p.code = :code "
+                    "WHERE r.name = CAST(:role AS varchar) AND p.code = CAST(:code AS varchar) "
                     "AND NOT EXISTS ("
                     "  SELECT 1 FROM role_permissions rp "
                     "  WHERE rp.role_id = r.id AND rp.permission_id = p.id"
