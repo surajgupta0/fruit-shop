@@ -51,6 +51,9 @@ export function ProductCard({ product }: { product: ProductSummary }) {
         )}
         <p className="mt-auto pt-3 text-sm font-semibold text-[var(--fs-ink)]">
           {priceLabel(product)}
+          {product.in_stock === false ? (
+            <span className="ml-2 text-xs font-medium text-[var(--fs-muted)]">Out of stock</span>
+          ) : null}
         </p>
       </div>
     </Link>

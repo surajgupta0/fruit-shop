@@ -12,6 +12,7 @@ from app.core.mixins import stamp_create, stamp_update
 from app.modules.catalog.models import (
     Brand,
     Category,
+    InventoryPolicy,
     Product,
     ProductAttribute,
     ProductImage,
@@ -32,6 +33,7 @@ from app.modules.catalog.schemas import (
     CategoryResponse,
     CategoryTreeResponse,
     CategoryUpdate,
+    ImageReorderRequest,
     ProductAttributeCreate,
     ProductAttributeResponse,
     ProductAttributeUpdate,
@@ -41,8 +43,12 @@ from app.modules.catalog.schemas import (
     ProductImageResponse,
     ProductImageUpdate,
     ProductListResponse,
+    ProductOptionCreate,
     ProductOptionResponse,
+    ProductOptionUpdate,
+    ProductOptionValueCreate,
     ProductOptionValueResponse,
+    ProductOptionValueUpdate,
     ProductRelationCreate,
     ProductRelationResponse,
     ProductSummaryResponse,
@@ -50,6 +56,7 @@ from app.modules.catalog.schemas import (
     ProductVariantCreate,
     ProductVariantResponse,
     ProductVariantUpdate,
+    PublishProductRequest,
     TagCreate,
     TagResponse,
     TagUpdate,
@@ -268,6 +275,17 @@ async def get_category(category_id: str, session: AsyncSession) -> CategoryRespo
     return CategoryResponse.model_validate(category)
 
 
+async def get_category_by_slug(
+    slug: str, session: AsyncSession, *, active_only: bool = False
+) -> CategoryResponse:
+    category = (
+        await session.execute(select(Category).where(Category.slug == slug))
+    ).scalar_one_or_none()
+    if category is None or (active_only and not category.is_active):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Category not found")
+    return CategoryResponse.model_validate(category)
+
+
 # ---------- tags ----------
 
 async def create_tag(
@@ -339,6 +357,7 @@ async def _get_product(product_id: str | uuid.UUID, session: AsyncSession) -> Pr
         select(Product)
         .where(Product.id == _parse_uuid(product_id, label="product id"))
         .options(*_product_load_options())
+        .execution_options(populate_existing=True)
     )
     product = result.scalar_one_or_none()
     if product is None:
@@ -348,7 +367,10 @@ async def _get_product(product_id: str | uuid.UUID, session: AsyncSession) -> Pr
 
 async def _get_product_by_slug(slug: str, session: AsyncSession) -> Product:
     result = await session.execute(
-        select(Product).where(Product.slug == slug).options(*_product_load_options())
+        select(Product)
+        .where(Product.slug == slug)
+        .options(*_product_load_options())
+        .execution_options(populate_existing=True)
     )
     product = result.scalar_one_or_none()
     if product is None:
@@ -399,7 +421,16 @@ def _image_response(i: ProductImage) -> ProductImageResponse:
 
 
 def to_summary(product: Product) -> ProductSummaryResponse:
-    prices = [v.price for v in product.variants if v.is_active]
+    active_variants = [v for v in product.variants if v.is_active]
+    prices = [v.price for v in active_variants]
+    total_stock = sum(v.stock_qty for v in active_variants)
+    if product.track_inventory:
+        in_stock = any(
+            v.stock_qty > 0 or v.inventory_policy == InventoryPolicy.continue_
+            for v in active_variants
+        )
+    else:
+        in_stock = bool(active_variants)
     primary = next((i for i in product.images if i.is_primary), None)
     if primary is None and product.images:
         primary = product.images[0]
@@ -422,6 +453,8 @@ def to_summary(product: Product) -> ProductSummaryResponse:
         primary_image_url=primary.url if primary else None,
         min_price=min(prices) if prices else None,
         max_price=max(prices) if prices else None,
+        in_stock=in_stock,
+        total_stock=total_stock,
         tag_slugs=[t.slug for t in product.tags],
         created_at=product.created_at,
         updated_at=product.updated_at,
@@ -533,10 +566,19 @@ async def create_product(
     slug = await _ensure_unique_slug(session, Product, payload.slug or payload.name)
     tags = await _load_tags(payload.tag_ids, session)
 
-    # Deduplicate SKUs in payload
+    # Deduplicate SKUs in payload and against existing variants
     skus = [v.sku for v in payload.variants]
     if len(skus) != len(set(skus)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Duplicate SKUs in variants")
+    if skus:
+        existing = (
+            await session.execute(select(ProductVariant.sku).where(ProductVariant.sku.in_(skus)))
+        ).scalars().all()
+        if existing:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"SKU already exists: {', '.join(sorted(existing))}",
+            )
 
     product = Product(
         name=payload.name,
@@ -1150,3 +1192,262 @@ async def delete_attribute(product_id: str, attribute_id: str, session: AsyncSes
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Attribute not found")
     await session.delete(attr)
     await session.flush()
+
+
+# ---------- options ----------
+
+def _option_response(option: ProductOption) -> ProductOptionResponse:
+    return ProductOptionResponse(
+        id=option.id,
+        name=option.name,
+        position=option.position,
+        values=[ProductOptionValueResponse.model_validate(v) for v in option.values],
+        created_at=option.created_at,
+        updated_at=option.updated_at,
+        created_by=option.created_by,
+        updated_by=option.updated_by,
+    )
+
+
+async def add_option(
+    product_id: str,
+    payload: ProductOptionCreate,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> ProductOptionResponse:
+    product = await _get_product(product_id, session)
+    if len(product.options) >= 3:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Maximum 3 product options")
+    if any(o.name.lower() == payload.name.lower() for o in product.options):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Option name already exists")
+
+    actor = _actor(actor_id)
+    option = ProductOption(
+        product_id=product.id,
+        name=payload.name,
+        position=payload.position,
+    )
+    stamp_create(option, actor)
+    session.add(option)
+    await session.flush()
+    option_id = option.id
+    for val in payload.values:
+        ov = ProductOptionValue(
+            option_id=option_id,
+            value=val.value,
+            sort_order=val.sort_order,
+        )
+        stamp_create(ov, actor)
+        session.add(ov)
+    await session.flush()
+    product = await _get_product(product.id, session)
+    option = next((o for o in product.options if o.id == option_id), None)
+    if option is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    return _option_response(option)
+
+
+async def update_option(
+    product_id: str,
+    option_id: str,
+    payload: ProductOptionUpdate,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> ProductOptionResponse:
+    product = await _get_product(product_id, session)
+    option = await session.get(ProductOption, _parse_uuid(option_id, label="option id"))
+    if option is None or option.product_id != product.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        if any(
+            o.name.lower() == data["name"].lower() and o.id != option.id
+            for o in product.options
+        ):
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="Option name already exists")
+    for key, value in data.items():
+        setattr(option, key, value)
+    stamp_update(option, _actor(actor_id))
+    await session.flush()
+    product = await _get_product(product.id, session)
+    option = next((o for o in product.options if o.id == option.id), None)
+    if option is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    return _option_response(option)
+
+
+async def delete_option(product_id: str, option_id: str, session: AsyncSession) -> None:
+    product = await _get_product(product_id, session)
+    option = await session.get(ProductOption, _parse_uuid(option_id, label="option id"))
+    if option is None or option.product_id != product.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    await session.delete(option)
+    await session.flush()
+
+
+async def add_option_value(
+    product_id: str,
+    option_id: str,
+    payload: ProductOptionValueCreate,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> ProductOptionValueResponse:
+    product = await _get_product(product_id, session)
+    option = await session.get(ProductOption, _parse_uuid(option_id, label="option id"))
+    if option is None or option.product_id != product.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    if any(v.value.lower() == payload.value.lower() for v in option.values):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Option value already exists")
+    ov = ProductOptionValue(
+        option_id=option.id,
+        value=payload.value,
+        sort_order=payload.sort_order,
+    )
+    stamp_create(ov, _actor(actor_id))
+    session.add(ov)
+    await session.flush()
+    return ProductOptionValueResponse.model_validate(ov)
+
+
+async def update_option_value(
+    product_id: str,
+    option_id: str,
+    value_id: str,
+    payload: ProductOptionValueUpdate,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> ProductOptionValueResponse:
+    product = await _get_product(product_id, session)
+    option = await session.get(ProductOption, _parse_uuid(option_id, label="option id"))
+    if option is None or option.product_id != product.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    ov = await session.get(ProductOptionValue, _parse_uuid(value_id, label="option value id"))
+    if ov is None or ov.option_id != option.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option value not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "value" in data and data["value"]:
+        if any(
+            v.value.lower() == data["value"].lower() and v.id != ov.id for v in option.values
+        ):
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="Option value already exists")
+    for key, value in data.items():
+        setattr(ov, key, value)
+    stamp_update(ov, _actor(actor_id))
+    await session.flush()
+    return ProductOptionValueResponse.model_validate(ov)
+
+
+async def delete_option_value(
+    product_id: str, option_id: str, value_id: str, session: AsyncSession
+) -> None:
+    product = await _get_product(product_id, session)
+    option = await session.get(ProductOption, _parse_uuid(option_id, label="option id"))
+    if option is None or option.product_id != product.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option not found")
+    ov = await session.get(ProductOptionValue, _parse_uuid(value_id, label="option value id"))
+    if ov is None or ov.option_id != option.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Option value not found")
+    await session.delete(ov)
+    await session.flush()
+
+
+# ---------- slug lookups ----------
+
+async def get_brand(brand_id: str, session: AsyncSession) -> BrandResponse:
+    brand = await session.get(Brand, _parse_uuid(brand_id, label="brand id"))
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Brand not found")
+    return BrandResponse.model_validate(brand)
+
+
+async def get_brand_by_slug(
+    slug: str, session: AsyncSession, *, active_only: bool = False
+) -> BrandResponse:
+    brand = (
+        await session.execute(select(Brand).where(Brand.slug == slug))
+    ).scalar_one_or_none()
+    if brand is None or (active_only and not brand.is_active):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Brand not found")
+    return BrandResponse.model_validate(brand)
+
+
+async def get_tag_by_slug(slug: str, session: AsyncSession) -> TagResponse:
+    tag = (await session.execute(select(Tag).where(Tag.slug == slug))).scalar_one_or_none()
+    if tag is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Tag not found")
+    return TagResponse.model_validate(tag)
+
+
+# ---------- publish / reorder ----------
+
+async def publish_product(
+    product_id: str,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+    payload: PublishProductRequest | None = None,
+) -> ProductDetailResponse:
+    product = await _get_product(product_id, session)
+    if not product.variants:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Active products require at least one variant",
+        )
+    product.status = ProductStatus.active
+    if product.published_at is None:
+        product.published_at = _utcnow()
+    if payload and payload.visibility is not None:
+        product.visibility = payload.visibility
+    elif product.visibility == ProductVisibility.hidden:
+        product.visibility = ProductVisibility.visible
+    stamp_update(product, _actor(actor_id))
+    await session.flush()
+    return to_detail(await _get_product(product.id, session))
+
+
+async def unpublish_product(
+    product_id: str,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> ProductDetailResponse:
+    product = await _get_product(product_id, session)
+    product.status = ProductStatus.draft
+    stamp_update(product, _actor(actor_id))
+    await session.flush()
+    return to_detail(await _get_product(product.id, session))
+
+
+async def reorder_images(
+    product_id: str,
+    payload: ImageReorderRequest,
+    session: AsyncSession,
+    *,
+    actor_id: str,
+) -> list[ProductImageResponse]:
+    product = await _get_product(product_id, session)
+    by_id = {img.id: img for img in product.images}
+    primary_set = False
+    for item in payload.images:
+        img = by_id.get(item.id)
+        if img is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Image {item.id} not found")
+        img.sort_order = item.sort_order
+        if item.is_primary is True:
+            await _clear_primary_images(product.id, session)
+            img.is_primary = True
+            primary_set = True
+        elif item.is_primary is False:
+            img.is_primary = False
+        stamp_update(img, _actor(actor_id))
+    if not primary_set and product.images and not any(i.is_primary for i in product.images):
+        first = sorted(product.images, key=lambda i: i.sort_order)[0]
+        first.is_primary = True
+        stamp_update(first, _actor(actor_id))
+    await session.flush()
+    product = await _get_product(product.id, session)
+    return [_image_response(i) for i in product.images]

@@ -44,6 +44,8 @@ export type ProductSummary = {
   primary_image_url: string | null;
   min_price: string | number | null;
   max_price: string | number | null;
+  in_stock?: boolean;
+  total_stock?: number;
   tag_slugs: string[];
 };
 
@@ -96,6 +98,19 @@ export type ProductDetail = {
   images: ProductImage[];
   variants: ProductVariant[];
   attributes: Array<{ id: string; name: string; value: string; is_visible: boolean }>;
+  options?: Array<{
+    id: string;
+    name: string;
+    position: number;
+    values: Array<{ id: string; value: string; sort_order: number }>;
+  }>;
+  relations?: Array<{
+    id: string;
+    related_product_id: string;
+    relation_type: string;
+    related_name: string | null;
+    related_slug: string | null;
+  }>;
 };
 
 export type ProductListResponse = {

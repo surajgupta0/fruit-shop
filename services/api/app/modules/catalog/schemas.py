@@ -134,6 +134,16 @@ class ProductOptionCreate(BaseModel):
     values: list[ProductOptionValueCreate] = Field(default_factory=list)
 
 
+class ProductOptionUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    position: int | None = Field(default=None, ge=1, le=3)
+
+
+class ProductOptionValueUpdate(BaseModel):
+    value: str | None = Field(default=None, min_length=1, max_length=120)
+    sort_order: int | None = None
+
+
 class ProductOptionValueResponse(AuditFields):
     id: UUID | str
     value: str
@@ -425,6 +435,8 @@ class ProductSummaryResponse(AuditFields):
     primary_image_url: str | None = None
     min_price: Decimal | None = None
     max_price: Decimal | None = None
+    in_stock: bool = False
+    total_stock: int = 0
     tag_slugs: list[str] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
@@ -483,3 +495,19 @@ class ProductListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class ImageReorderItem(BaseModel):
+    id: UUID
+    sort_order: int = Field(ge=0)
+    is_primary: bool | None = None
+
+
+class ImageReorderRequest(BaseModel):
+    images: list[ImageReorderItem] = Field(min_length=1)
+
+
+class PublishProductRequest(BaseModel):
+    """Optional overrides when publishing."""
+
+    visibility: ProductVisibility | None = None

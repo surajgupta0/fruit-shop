@@ -330,6 +330,29 @@ export default function ProductPage() {
           </section>
         )}
 
+        {(p.relations ?? []).filter((r) => r.related_slug).length > 0 && (
+          <section className="mt-10 max-w-3xl">
+            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl">You may also like</h2>
+            <ul className="mt-4 space-y-2">
+              {(p.relations ?? [])
+                .filter((r) => r.related_slug)
+                .map((r) => (
+                  <li key={r.id}>
+                    <Link
+                      href={`/product/${r.related_slug}`}
+                      className="text-sm font-medium text-[var(--fs-leaf-deep)] hover:underline"
+                    >
+                      {r.related_name ?? r.related_slug}
+                    </Link>
+                    <span className="ml-2 text-xs capitalize text-[var(--fs-muted)]">
+                      {String(r.relation_type).replaceAll("_", " ")}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
+
         {relatedItems.length > 0 && (
           <section className="mt-14">
             <h2 className="mb-6 font-[family-name:var(--font-fraunces)] text-2xl">

@@ -65,6 +65,30 @@ export type ProductAttribute = {
   is_visible: boolean;
 };
 
+export type ProductOptionValue = {
+  id: string;
+  value: string;
+  sort_order: number;
+};
+
+export type ProductOption = {
+  id: string;
+  name: string;
+  position: number;
+  values: ProductOptionValue[];
+};
+
+export type RelationType = "related" | "upsell" | "cross_sell" | "bundle" | "variant_group";
+
+export type ProductRelation = {
+  id: string;
+  related_product_id: string;
+  relation_type: RelationType | string;
+  sort_order: number;
+  related_name: string | null;
+  related_slug: string | null;
+};
+
 export type ProductSummary = {
   id: string;
   name: string;
@@ -84,6 +108,8 @@ export type ProductSummary = {
   primary_image_url: string | null;
   min_price: string | number | null;
   max_price: string | number | null;
+  in_stock?: boolean;
+  total_stock?: number;
   tag_slugs: string[];
 };
 
@@ -120,14 +146,17 @@ export type ProductDetail = {
   meta_title: string | null;
   meta_description: string | null;
   sort_order: number;
+  published_at?: string | null;
   category_id: string | null;
   brand_id: string | null;
   category: Category | null;
   brand: Brand | null;
   tags: Tag[];
+  options: ProductOption[];
   attributes: ProductAttribute[];
   images: ProductImage[];
   variants: ProductVariant[];
+  relations: ProductRelation[];
 };
 
 export type ProductListResponse = {
@@ -220,6 +249,18 @@ export const catalogApi = {
     });
   },
 
+  publishProduct(id: string, body?: { visibility?: ProductVisibility }) {
+    return api.post<ProductDetail>(`/catalog/admin/products/${id}/publish`, body ?? {}, {
+      successToast: "Product published",
+    });
+  },
+
+  unpublishProduct(id: string) {
+    return api.post<ProductDetail>(`/catalog/admin/products/${id}/unpublish`, {}, {
+      successToast: "Product unpublished",
+    });
+  },
+
   // Categories
   listCategories() {
     return api.get<Category[]>("/catalog/admin/categories");
@@ -275,7 +316,7 @@ export const catalogApi = {
 
   // Tags
   listTags() {
-    return api.get<Tag[]>("/catalog/tags", { auth: true });
+    return api.get<Tag[]>("/catalog/admin/tags");
   },
   createTag(body: { name: string; slug?: string }) {
     return api.post<Tag>("/catalog/admin/tags", body, { successToast: "Tag created" });
@@ -289,7 +330,7 @@ export const catalogApi = {
     return api.delete<void>(`/catalog/admin/tags/${id}`, { successToast: "Tag deleted" });
   },
 
-  // Variants / images
+  // Variants
   addVariant(
     productId: string,
     body: {
@@ -300,6 +341,9 @@ export const catalogApi = {
       low_stock_threshold?: number;
       is_default?: boolean;
       is_active?: boolean;
+      option1?: string;
+      option2?: string;
+      option3?: string;
     },
   ) {
     return api.post<ProductVariant>(`/catalog/admin/products/${productId}/variants`, body, {
@@ -318,6 +362,8 @@ export const catalogApi = {
       successToast: "Variant removed",
     });
   },
+
+  // Images
   addImage(
     productId: string,
     body: { url: string; alt_text?: string; is_primary?: boolean; sort_order?: number },
@@ -336,6 +382,115 @@ export const catalogApi = {
   deleteImage(productId: string, imageId: string) {
     return api.delete<void>(`/catalog/admin/products/${productId}/images/${imageId}`, {
       successToast: "Image removed",
+    });
+  },
+  reorderImages(
+    productId: string,
+    images: Array<{ id: string; sort_order: number; is_primary?: boolean | null }>,
+  ) {
+    return api.post<ProductImage[]>(
+      `/catalog/admin/products/${productId}/images/reorder`,
+      { images },
+      { successToast: "Images reordered" },
+    );
+  },
+
+  // Attributes
+  addAttribute(
+    productId: string,
+    body: { name: string; value: string; sort_order?: number; is_visible?: boolean },
+  ) {
+    return api.post<ProductAttribute>(
+      `/catalog/admin/products/${productId}/attributes`,
+      body,
+      { successToast: "Attribute added" },
+    );
+  },
+  updateAttribute(productId: string, attributeId: string, body: Record<string, unknown>) {
+    return api.patch<ProductAttribute>(
+      `/catalog/admin/products/${productId}/attributes/${attributeId}`,
+      body,
+      { successToast: "Attribute updated" },
+    );
+  },
+  deleteAttribute(productId: string, attributeId: string) {
+    return api.delete<void>(`/catalog/admin/products/${productId}/attributes/${attributeId}`, {
+      successToast: "Attribute removed",
+    });
+  },
+
+  // Options
+  addOption(
+    productId: string,
+    body: {
+      name: string;
+      position?: number;
+      values?: Array<{ value: string; sort_order?: number }>;
+    },
+  ) {
+    return api.post<ProductOption>(`/catalog/admin/products/${productId}/options`, body, {
+      successToast: "Option added",
+    });
+  },
+  updateOption(productId: string, optionId: string, body: Record<string, unknown>) {
+    return api.patch<ProductOption>(
+      `/catalog/admin/products/${productId}/options/${optionId}`,
+      body,
+      { successToast: "Option updated" },
+    );
+  },
+  deleteOption(productId: string, optionId: string) {
+    return api.delete<void>(`/catalog/admin/products/${productId}/options/${optionId}`, {
+      successToast: "Option removed",
+    });
+  },
+  addOptionValue(
+    productId: string,
+    optionId: string,
+    body: { value: string; sort_order?: number },
+  ) {
+    return api.post<ProductOptionValue>(
+      `/catalog/admin/products/${productId}/options/${optionId}/values`,
+      body,
+      { successToast: "Value added" },
+    );
+  },
+  updateOptionValue(
+    productId: string,
+    optionId: string,
+    valueId: string,
+    body: Record<string, unknown>,
+  ) {
+    return api.patch<ProductOptionValue>(
+      `/catalog/admin/products/${productId}/options/${optionId}/values/${valueId}`,
+      body,
+      { successToast: "Value updated" },
+    );
+  },
+  deleteOptionValue(productId: string, optionId: string, valueId: string) {
+    return api.delete<void>(
+      `/catalog/admin/products/${productId}/options/${optionId}/values/${valueId}`,
+      { successToast: "Value removed" },
+    );
+  },
+
+  // Relations
+  listRelations(productId: string) {
+    return api.get<ProductRelation[]>(`/catalog/admin/products/${productId}/relations`);
+  },
+  addRelation(
+    productId: string,
+    body: { related_product_id: string; relation_type?: RelationType; sort_order?: number },
+  ) {
+    return api.post<ProductRelation>(
+      `/catalog/admin/products/${productId}/relations`,
+      body,
+      { successToast: "Relation added" },
+    );
+  },
+  deleteRelation(productId: string, relationId: string) {
+    return api.delete<void>(`/catalog/admin/products/${productId}/relations/${relationId}`, {
+      successToast: "Relation removed",
     });
   },
 };

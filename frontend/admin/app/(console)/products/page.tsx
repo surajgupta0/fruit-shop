@@ -95,6 +95,7 @@ function ProductsPanel() {
                     <th className="px-4 py-3 font-semibold">Product</th>
                     <th className="px-4 py-3 font-semibold">Category</th>
                     <th className="px-4 py-3 font-semibold">Price</th>
+                    <th className="px-4 py-3 font-semibold">Stock</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
                   </tr>
                 </thead>
@@ -132,6 +133,12 @@ function ProductsPanel() {
                         {p.max_price && p.max_price !== p.min_price
                           ? ` – ${formatPrice(p.max_price)}`
                           : ""}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--fs-muted)]">
+                        {p.total_stock != null ? p.total_stock : "—"}
+                        {p.in_stock === false ? (
+                          <span className="ml-1 text-xs text-rose-600">out</span>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3">
                         <StatusPill tone={statusTone(p.status)}>{p.status}</StatusPill>

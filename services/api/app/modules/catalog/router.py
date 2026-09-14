@@ -6,6 +6,7 @@ from fruitshop_shared.auth_deps import User as AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_session, require_permissions
+from app.core.schemas import ModuleHealthResponse
 from app.modules.catalog import service as catalog_service
 from app.modules.catalog.schemas import (
     BrandCreate,
@@ -15,6 +16,7 @@ from app.modules.catalog.schemas import (
     CategoryResponse,
     CategoryTreeResponse,
     CategoryUpdate,
+    ImageReorderRequest,
     ProductAttributeCreate,
     ProductAttributeResponse,
     ProductAttributeUpdate,
@@ -24,12 +26,19 @@ from app.modules.catalog.schemas import (
     ProductImageResponse,
     ProductImageUpdate,
     ProductListResponse,
+    ProductOptionCreate,
+    ProductOptionResponse,
+    ProductOptionUpdate,
+    ProductOptionValueCreate,
+    ProductOptionValueResponse,
+    ProductOptionValueUpdate,
     ProductRelationCreate,
     ProductRelationResponse,
     ProductUpdate,
     ProductVariantCreate,
     ProductVariantResponse,
     ProductVariantUpdate,
+    PublishProductRequest,
     TagCreate,
     TagResponse,
     TagUpdate,
@@ -37,6 +46,11 @@ from app.modules.catalog.schemas import (
 from app.modules.users.rbac import CATALOG_MANAGE
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+
+@router.get("/health", response_model=ModuleHealthResponse)
+def health() -> ModuleHealthResponse:
+    return ModuleHealthResponse(module="catalog")
 
 
 # ---------- public storefront ----------
@@ -55,6 +69,14 @@ async def category_tree_public(
     return await catalog_service.category_tree(session, active_only=True)
 
 
+@router.get("/categories/by-slug/{slug}", response_model=CategoryResponse)
+async def get_category_by_slug_public(
+    slug: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CategoryResponse:
+    return await catalog_service.get_category_by_slug(slug, session, active_only=True)
+
+
 @router.get("/brands", response_model=list[BrandResponse])
 async def list_brands_public(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -62,11 +84,27 @@ async def list_brands_public(
     return await catalog_service.list_brands(session, active_only=True)
 
 
+@router.get("/brands/by-slug/{slug}", response_model=BrandResponse)
+async def get_brand_by_slug_public(
+    slug: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BrandResponse:
+    return await catalog_service.get_brand_by_slug(slug, session, active_only=True)
+
+
 @router.get("/tags", response_model=list[TagResponse])
 async def list_tags_public(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[TagResponse]:
     return await catalog_service.list_tags(session)
+
+
+@router.get("/tags/by-slug/{slug}", response_model=TagResponse)
+async def get_tag_by_slug_public(
+    slug: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TagResponse:
+    return await catalog_service.get_tag_by_slug(slug, session)
 
 
 @router.get("/products", response_model=ProductListResponse)
@@ -157,6 +195,15 @@ async def list_brands_admin(
     return await catalog_service.list_brands(session, active_only=False)
 
 
+@router.get("/admin/brands/{brand_id}", response_model=BrandResponse)
+async def get_brand_admin(
+    brand_id: UUID,
+    _: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BrandResponse:
+    return await catalog_service.get_brand(str(brand_id), session)
+
+
 @router.post(
     "/admin/categories",
     response_model=CategoryResponse,
@@ -200,6 +247,15 @@ async def list_categories_admin(
     return await catalog_service.list_categories(session, active_only=False)
 
 
+@router.get("/admin/categories/{category_id}", response_model=CategoryResponse)
+async def get_category_admin(
+    category_id: UUID,
+    _: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CategoryResponse:
+    return await catalog_service.get_category(str(category_id), session)
+
+
 @router.post("/admin/tags", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
 async def create_tag(
     body: TagCreate,
@@ -207,6 +263,14 @@ async def create_tag(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TagResponse:
     return await catalog_service.create_tag(body, session, actor_id=actor.sub)
+
+
+@router.get("/admin/tags", response_model=list[TagResponse])
+async def list_tags_admin(
+    _: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[TagResponse]:
+    return await catalog_service.list_tags(session)
 
 
 @router.patch("/admin/tags/{tag_id}", response_model=TagResponse)
@@ -303,6 +367,35 @@ async def delete_product(
 
 
 @router.post(
+    "/admin/products/{product_id}/publish",
+    response_model=ProductDetailResponse,
+)
+async def publish_product(
+    product_id: UUID,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    body: PublishProductRequest | None = None,
+) -> ProductDetailResponse:
+    return await catalog_service.publish_product(
+        str(product_id), session, actor_id=actor.sub, payload=body
+    )
+
+
+@router.post(
+    "/admin/products/{product_id}/unpublish",
+    response_model=ProductDetailResponse,
+)
+async def unpublish_product(
+    product_id: UUID,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProductDetailResponse:
+    return await catalog_service.unpublish_product(
+        str(product_id), session, actor_id=actor.sub
+    )
+
+
+@router.post(
     "/admin/products/{product_id}/images",
     response_model=ProductImageResponse,
     status_code=status.HTTP_201_CREATED,
@@ -346,6 +439,21 @@ async def delete_image(
 ) -> Response:
     await catalog_service.delete_image(str(product_id), str(image_id), session)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/admin/products/{product_id}/images/reorder",
+    response_model=list[ProductImageResponse],
+)
+async def reorder_images(
+    product_id: UUID,
+    body: ImageReorderRequest,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[ProductImageResponse]:
+    return await catalog_service.reorder_images(
+        str(product_id), body, session, actor_id=actor.sub
+    )
 
 
 @router.post(
@@ -437,6 +545,108 @@ async def delete_attribute(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Response:
     await catalog_service.delete_attribute(str(product_id), str(attribute_id), session)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/admin/products/{product_id}/options",
+    response_model=ProductOptionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_option(
+    product_id: UUID,
+    body: ProductOptionCreate,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProductOptionResponse:
+    return await catalog_service.add_option(
+        str(product_id), body, session, actor_id=actor.sub
+    )
+
+
+@router.patch(
+    "/admin/products/{product_id}/options/{option_id}",
+    response_model=ProductOptionResponse,
+)
+async def update_option(
+    product_id: UUID,
+    option_id: UUID,
+    body: ProductOptionUpdate,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProductOptionResponse:
+    return await catalog_service.update_option(
+        str(product_id), str(option_id), body, session, actor_id=actor.sub
+    )
+
+
+@router.delete(
+    "/admin/products/{product_id}/options/{option_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_option(
+    product_id: UUID,
+    option_id: UUID,
+    _: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    await catalog_service.delete_option(str(product_id), str(option_id), session)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/admin/products/{product_id}/options/{option_id}/values",
+    response_model=ProductOptionValueResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_option_value(
+    product_id: UUID,
+    option_id: UUID,
+    body: ProductOptionValueCreate,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProductOptionValueResponse:
+    return await catalog_service.add_option_value(
+        str(product_id), str(option_id), body, session, actor_id=actor.sub
+    )
+
+
+@router.patch(
+    "/admin/products/{product_id}/options/{option_id}/values/{value_id}",
+    response_model=ProductOptionValueResponse,
+)
+async def update_option_value(
+    product_id: UUID,
+    option_id: UUID,
+    value_id: UUID,
+    body: ProductOptionValueUpdate,
+    actor: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProductOptionValueResponse:
+    return await catalog_service.update_option_value(
+        str(product_id),
+        str(option_id),
+        str(value_id),
+        body,
+        session,
+        actor_id=actor.sub,
+    )
+
+
+@router.delete(
+    "/admin/products/{product_id}/options/{option_id}/values/{value_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_option_value(
+    product_id: UUID,
+    option_id: UUID,
+    value_id: UUID,
+    _: Annotated[AuthUser, Depends(require_permissions(CATALOG_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    await catalog_service.delete_option_value(
+        str(product_id), str(option_id), str(value_id), session
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

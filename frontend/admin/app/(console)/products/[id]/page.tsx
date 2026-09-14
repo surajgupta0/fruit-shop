@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@fruitshop/web-core";
 
 import { RequirePermission } from "@/src/components/RequirePermission";
@@ -17,7 +17,13 @@ import {
   StatusPill,
   Surface,
 } from "@/src/console/ui";
-import { catalogApi, formatPrice } from "@/src/modules/catalog/api";
+import {
+  catalogApi,
+  formatPrice,
+  type RelationType,
+} from "@/src/modules/catalog/api";
+
+type Tab = "details" | "variants" | "options" | "attributes" | "images" | "related";
 
 function ProductDetailPanel({ productId }: { productId: string }) {
   const router = useRouter();
@@ -25,8 +31,12 @@ function ProductDetailPanel({ productId }: { productId: string }) {
   const categories = useQuery(() => catalogApi.listCategories(), []);
   const brands = useQuery(() => catalogApi.listBrands(), []);
   const tags = useQuery(() => catalogApi.listTags(), []);
+  const relatedPicker = useQuery(
+    () => catalogApi.listProducts({ page: 1, page_size: 50, status: "active" }),
+    [],
+  );
 
-  const [tab, setTab] = useState<"details" | "variants" | "images">("details");
+  const [tab, setTab] = useState<Tab>("details");
   const [form, setForm] = useState({
     name: "",
     short_description: "",
@@ -52,6 +62,16 @@ function ProductDetailPanel({ productId }: { productId: string }) {
   const [vPrice, setVPrice] = useState("0");
   const [vStock, setVStock] = useState("0");
   const [imageUrl, setImageUrl] = useState("");
+
+  const [optionName, setOptionName] = useState("");
+  const [optionValues, setOptionValues] = useState("");
+  const [valueDrafts, setValueDrafts] = useState<Record<string, string>>({});
+
+  const [attrName, setAttrName] = useState("");
+  const [attrValue, setAttrValue] = useState("");
+
+  const [relatedId, setRelatedId] = useState("");
+  const [relationType, setRelationType] = useState<RelationType>("related");
 
   useEffect(() => {
     if (!detail.data) return;
@@ -100,6 +120,8 @@ function ProductDetailPanel({ productId }: { productId: string }) {
   );
 
   const remove = useMutation(() => catalogApi.deleteProduct(productId));
+  const publish = useMutation(() => catalogApi.publishProduct(productId));
+  const unpublish = useMutation(() => catalogApi.unpublishProduct(productId));
   const addVariant = useMutation(() =>
     catalogApi.addVariant(productId, {
       sku: sku.trim(),
@@ -117,6 +139,15 @@ function ProductDetailPanel({ productId }: { productId: string }) {
     }),
   );
 
+  const sortedImages = useMemo(() => {
+    const images = detail.data?.images ?? [];
+    return [...images].sort((a, b) => a.sort_order - b.sort_order);
+  }, [detail.data?.images]);
+
+  const relatedChoices = useMemo(() => {
+    return (relatedPicker.data?.items ?? []).filter((item) => item.id !== productId);
+  }, [relatedPicker.data, productId]);
+
   if (detail.isLoading) {
     return <p className="text-sm text-[var(--fs-muted)]">Loading product…</p>;
   }
@@ -132,11 +163,36 @@ function ProductDetailPanel({ productId }: { productId: string }) {
   }
 
   const p = detail.data;
+  const options = p.options ?? [];
+  const attributes = p.attributes ?? [];
+  const relations = p.relations ?? [];
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
     try {
       await save.mutate();
+      await detail.refetch();
+    } catch {
+      /* toast */
+    }
+  }
+
+  async function moveImage(imageId: string, direction: -1 | 1) {
+    const ordered = [...sortedImages];
+    const index = ordered.findIndex((img) => img.id === imageId);
+    const next = index + direction;
+    if (index < 0 || next < 0 || next >= ordered.length) return;
+    const swapped = [...ordered];
+    [swapped[index], swapped[next]] = [swapped[next], swapped[index]];
+    try {
+      await catalogApi.reorderImages(
+        productId,
+        swapped.map((img, sort_order) => ({
+          id: img.id,
+          sort_order,
+          is_primary: img.is_primary,
+        })),
+      );
       await detail.refetch();
     } catch {
       /* toast */
@@ -163,6 +219,37 @@ function ProductDetailPanel({ productId }: { productId: string }) {
             >
               {p.status}
             </StatusPill>
+            {p.status === "active" ? (
+              <Btn
+                variant="ghost"
+                disabled={unpublish.isLoading}
+                onClick={async () => {
+                  try {
+                    await unpublish.mutate();
+                    await detail.refetch();
+                  } catch {
+                    /* toast */
+                  }
+                }}
+              >
+                {unpublish.isLoading ? "…" : "Unpublish"}
+              </Btn>
+            ) : (
+              <Btn
+                disabled={publish.isLoading || p.variants.length === 0}
+                title={p.variants.length === 0 ? "Add a variant before publishing" : undefined}
+                onClick={async () => {
+                  try {
+                    await publish.mutate();
+                    await detail.refetch();
+                  } catch {
+                    /* toast */
+                  }
+                }}
+              >
+                {publish.isLoading ? "…" : "Publish"}
+              </Btn>
+            )}
             <Btn
               variant="danger"
               onClick={async () => {
@@ -181,19 +268,22 @@ function ProductDetailPanel({ productId }: { productId: string }) {
         }
       />
 
-      <div className="flex gap-1 rounded-xl border border-[var(--fs-line)] bg-white p-1">
+      <div className="flex flex-wrap gap-1 rounded-xl border border-[var(--fs-line)] bg-white p-1">
         {(
           [
             ["details", "Details"],
-            ["variants", "Variants & stock"],
+            ["variants", "Variants"],
+            ["options", "Options"],
+            ["attributes", "Attributes"],
             ["images", "Images"],
+            ["related", "Related"],
           ] as const
         ).map(([id, label]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
               tab === id
                 ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
                 : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
@@ -498,29 +588,304 @@ function ProductDetailPanel({ productId }: { productId: string }) {
         </div>
       )}
 
+      {tab === "options" && (
+        <div className="space-y-4">
+          {options.map((opt) => (
+            <Surface key={opt.id} padded>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-[var(--fs-ink)]">{opt.name}</p>
+                  <p className="text-xs text-[var(--fs-muted)]">Position {opt.position}</p>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs text-rose-600 hover:underline"
+                  onClick={async () => {
+                    if (!confirm(`Remove option “${opt.name}”?`)) return;
+                    try {
+                      await catalogApi.deleteOption(productId, opt.id);
+                      await detail.refetch();
+                    } catch {
+                      /* toast */
+                    }
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {opt.values.map((val) => (
+                  <span
+                    key={val.id}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--fs-mist)] px-2.5 py-1 text-xs text-[var(--fs-leaf-deep)]"
+                  >
+                    {val.value}
+                    <button
+                      type="button"
+                      className="text-[var(--fs-muted)] hover:text-rose-600"
+                      aria-label={`Remove ${val.value}`}
+                      onClick={async () => {
+                        try {
+                          await catalogApi.deleteOptionValue(productId, opt.id, val.id);
+                          await detail.refetch();
+                        } catch {
+                          /* toast */
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <div className="min-w-[160px] flex-1">
+                  <Input
+                    placeholder="Add value…"
+                    value={valueDrafts[opt.id] ?? ""}
+                    onChange={(e) =>
+                      setValueDrafts((d) => ({ ...d, [opt.id]: e.target.value }))
+                    }
+                  />
+                </div>
+                <Btn
+                  disabled={!((valueDrafts[opt.id] ?? "").trim())}
+                  onClick={async () => {
+                    const value = (valueDrafts[opt.id] ?? "").trim();
+                    if (!value) return;
+                    try {
+                      await catalogApi.addOptionValue(productId, opt.id, { value });
+                      setValueDrafts((d) => ({ ...d, [opt.id]: "" }));
+                      await detail.refetch();
+                    } catch {
+                      /* toast */
+                    }
+                  }}
+                >
+                  Add value
+                </Btn>
+              </div>
+            </Surface>
+          ))}
+
+          {!options.length && (
+            <Surface padded>
+              <p className="text-sm text-[var(--fs-muted)]">
+                No options yet. Add Size, Pack, or Grade (max 3).
+              </p>
+            </Surface>
+          )}
+
+          {options.length < 3 && (
+            <Surface padded>
+              <SectionLabel>Add option</SectionLabel>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Name">
+                  <Input
+                    value={optionName}
+                    onChange={(e) => setOptionName(e.target.value)}
+                    placeholder="Size"
+                  />
+                </Field>
+                <Field label="Values (comma-separated)">
+                  <Input
+                    value={optionValues}
+                    onChange={(e) => setOptionValues(e.target.value)}
+                    placeholder="Small, Medium, Large"
+                  />
+                </Field>
+              </div>
+              <Btn
+                className="mt-3"
+                disabled={!optionName.trim()}
+                onClick={async () => {
+                  const values = optionValues
+                    .split(",")
+                    .map((v) => v.trim())
+                    .filter(Boolean)
+                    .map((value, sort_order) => ({ value, sort_order }));
+                  try {
+                    await catalogApi.addOption(productId, {
+                      name: optionName.trim(),
+                      position: options.length + 1,
+                      values,
+                    });
+                    setOptionName("");
+                    setOptionValues("");
+                    await detail.refetch();
+                  } catch {
+                    /* toast */
+                  }
+                }}
+              >
+                Add option
+              </Btn>
+            </Surface>
+          )}
+        </div>
+      )}
+
+      {tab === "attributes" && (
+        <div className="space-y-4">
+          <Surface>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/50 text-[11px] uppercase text-[var(--fs-muted)]">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Value</th>
+                    <th className="px-4 py-3">Visible</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--fs-line)]">
+                  {attributes.map((attr) => (
+                    <tr key={attr.id}>
+                      <td className="px-4 py-3">{attr.name}</td>
+                      <td className="px-4 py-3">{attr.value}</td>
+                      <td className="px-4 py-3">{attr.is_visible ? "Yes" : "No"}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          className="text-xs text-rose-600 hover:underline"
+                          onClick={async () => {
+                            try {
+                              await catalogApi.deleteAttribute(productId, attr.id);
+                              await detail.refetch();
+                            } catch {
+                              /* toast */
+                            }
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!attributes.length && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-sm text-[var(--fs-muted)]">
+                        No attributes yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Surface>
+
+          <Surface padded>
+            <SectionLabel>Add attribute</SectionLabel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Name">
+                <Input
+                  value={attrName}
+                  onChange={(e) => setAttrName(e.target.value)}
+                  placeholder="Origin"
+                />
+              </Field>
+              <Field label="Value">
+                <Input
+                  value={attrValue}
+                  onChange={(e) => setAttrValue(e.target.value)}
+                  placeholder="Ratnagiri"
+                />
+              </Field>
+            </div>
+            <Btn
+              className="mt-3"
+              disabled={!attrName.trim() || !attrValue.trim()}
+              onClick={async () => {
+                try {
+                  await catalogApi.addAttribute(productId, {
+                    name: attrName.trim(),
+                    value: attrValue.trim(),
+                    is_visible: true,
+                  });
+                  setAttrName("");
+                  setAttrValue("");
+                  await detail.refetch();
+                } catch {
+                  /* toast */
+                }
+              }}
+            >
+              Add attribute
+            </Btn>
+          </Surface>
+        </div>
+      )}
+
       {tab === "images" && (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            {p.images.map((img) => (
+            {sortedImages.map((img, index) => (
               <Surface key={img.id} className="overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt={img.alt_text ?? ""} className="aspect-[4/3] w-full object-cover" />
-                <div className="flex items-center justify-between gap-2 p-3 text-xs">
-                  <span>{img.is_primary ? "Primary" : "Gallery"}</span>
-                  <button
-                    type="button"
-                    className="text-rose-600 hover:underline"
-                    onClick={async () => {
-                      try {
-                        await catalogApi.deleteImage(productId, img.id);
-                        await detail.refetch();
-                      } catch {
-                        /* toast */
-                      }
-                    }}
-                  >
-                    Remove
-                  </button>
+                <img
+                  src={img.url}
+                  alt={img.alt_text ?? ""}
+                  className="aspect-[4/3] w-full object-cover"
+                />
+                <div className="space-y-2 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{img.is_primary ? "Primary" : "Gallery"}</span>
+                    <button
+                      type="button"
+                      className="text-rose-600 hover:underline"
+                      onClick={async () => {
+                        try {
+                          await catalogApi.deleteImage(productId, img.id);
+                          await detail.refetch();
+                        } catch {
+                          /* toast */
+                        }
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!img.is_primary && (
+                      <button
+                        type="button"
+                        className="text-[var(--fs-leaf)] hover:underline"
+                        onClick={async () => {
+                          try {
+                            await catalogApi.reorderImages(
+                              productId,
+                              sortedImages.map((item, sort_order) => ({
+                                id: item.id,
+                                sort_order,
+                                is_primary: item.id === img.id,
+                              })),
+                            );
+                            await detail.refetch();
+                          } catch {
+                            /* toast */
+                          }
+                        }}
+                      >
+                        Set primary
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-[var(--fs-muted)] hover:text-[var(--fs-ink)] disabled:opacity-40"
+                      disabled={index === 0}
+                      onClick={() => moveImage(img.id, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[var(--fs-muted)] hover:text-[var(--fs-ink)] disabled:opacity-40"
+                      disabled={index === sortedImages.length - 1}
+                      onClick={() => moveImage(img.id, 1)}
+                    >
+                      ↓
+                    </button>
+                  </div>
                 </div>
               </Surface>
             ))}
@@ -551,6 +916,110 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                 Add
               </Btn>
             </div>
+          </Surface>
+        </div>
+      )}
+
+      {tab === "related" && (
+        <div className="space-y-4">
+          <Surface>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/50 text-[11px] uppercase text-[var(--fs-muted)]">
+                    <th className="px-4 py-3">Product</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--fs-line)]">
+                  {relations.map((rel) => (
+                    <tr key={rel.id}>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/products/${rel.related_product_id}`}
+                          className="font-medium hover:text-[var(--fs-leaf)]"
+                        >
+                          {rel.related_name ?? rel.related_product_id}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 capitalize">
+                        {String(rel.relation_type).replaceAll("_", " ")}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          className="text-xs text-rose-600 hover:underline"
+                          onClick={async () => {
+                            try {
+                              await catalogApi.deleteRelation(productId, rel.id);
+                              await detail.refetch();
+                            } catch {
+                              /* toast */
+                            }
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!relations.length && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-6 text-sm text-[var(--fs-muted)]">
+                        No related products yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Surface>
+
+          <Surface padded>
+            <SectionLabel>Add relation</SectionLabel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Product">
+                <Select value={relatedId} onChange={(e) => setRelatedId(e.target.value)}>
+                  <option value="">Select…</option>
+                  {relatedChoices.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Type">
+                <Select
+                  value={relationType}
+                  onChange={(e) => setRelationType(e.target.value as RelationType)}
+                >
+                  <option value="related">Related</option>
+                  <option value="upsell">Upsell</option>
+                  <option value="cross_sell">Cross-sell</option>
+                  <option value="bundle">Bundle</option>
+                  <option value="variant_group">Variant group</option>
+                </Select>
+              </Field>
+            </div>
+            <Btn
+              className="mt-3"
+              disabled={!relatedId}
+              onClick={async () => {
+                try {
+                  await catalogApi.addRelation(productId, {
+                    related_product_id: relatedId,
+                    relation_type: relationType,
+                  });
+                  setRelatedId("");
+                  await detail.refetch();
+                } catch {
+                  /* toast */
+                }
+              }}
+            >
+              Add relation
+            </Btn>
           </Surface>
         </div>
       )}
