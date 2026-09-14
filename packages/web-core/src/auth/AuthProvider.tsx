@@ -23,7 +23,8 @@ type AuthState = {
   verifyOtp: (phone: string, code: string, name?: string) => Promise<AuthUser>;
   requestEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, code: string, name?: string) => Promise<AuthUser>;
-  logout: () => void;
+  /** Revoke refresh token (and optionally all sessions), then clear local auth. */
+  logout: (options?: { allSessions?: boolean }) => Promise<void>;
   refreshMe: () => Promise<AuthUser | null>;
   hasPermission: (permission: string) => boolean;
   hasRole: (...roles: string[]) => boolean;
@@ -154,13 +155,38 @@ export function AuthProvider({
     [emailOtpVerifyPath, applyTokens],
   );
 
-  const logout = useCallback(() => {
-    tokenStore.clear();
-    setUser(null);
-    if (typeof window !== "undefined") {
-      window.location.assign(loginPath);
-    }
-  }, [loginPath]);
+  const logout = useCallback(
+    async (options?: { allSessions?: boolean }) => {
+      const refresh = tokenStore.getRefresh();
+      const allSessions = Boolean(options?.allSessions);
+
+      if (refresh || allSessions) {
+        try {
+          await api.post(
+            "/auth/logout",
+            {
+              ...(refresh ? { refresh_token: refresh } : {}),
+              all_sessions: allSessions,
+            },
+            {
+              // Bearer required only when revoking every session for this user
+              auth: allSessions,
+              toastOnError: false,
+            },
+          );
+        } catch {
+          /* still clear local session */
+        }
+      }
+
+      tokenStore.clear();
+      setUser(null);
+      if (typeof window !== "undefined") {
+        window.location.assign(loginPath);
+      }
+    },
+    [loginPath],
+  );
 
   const value = useMemo<AuthState>(
     () => ({

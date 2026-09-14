@@ -87,7 +87,15 @@ export function AdminLoginForm() {
             </label>
 
             <label className="mt-4 block space-y-1.5 text-sm">
-              <span className="font-medium text-stone-700">Password</span>
+              <span className="flex items-center justify-between font-medium text-stone-700">
+                <span>Password</span>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-[var(--fs-leaf)] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </span>
               <div className="relative">
                 <input
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2.5 pr-16 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"

@@ -21,6 +21,15 @@ class Settings(BaseAppSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "Fruit Shop <noreply@fruitshop.example>"
     SMTP_USE_TLS: bool = True
+    # SMS — provider "log" (default) prints OTP; "twilio" sends via Twilio REST
+    SMS_PROVIDER: str = "log"
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_FROM_NUMBER: str = ""  # E.164, e.g. +15005550006
+    # Password reset (admin/staff)
+    PASSWORD_RESET_TTL_MINUTES: int = 60
+    # Optional link base shown in reset email, e.g. https://admin.example/reset-password
+    PASSWORD_RESET_URL_BASE: str = ""
     # Comma-separated browser origins allowed to call the API
     CORS_ORIGINS: str = (
         "http://localhost:3000,http://localhost:3001,"

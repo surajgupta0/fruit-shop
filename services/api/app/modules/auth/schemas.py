@@ -30,6 +30,26 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    """Revoke a refresh token and/or all sessions for the current user.
+
+    - `refresh_token`: revoke that session (optional; safe if already revoked)
+    - `all_sessions`: when true, requires Authorization and revokes every refresh token
+    """
+
+    refresh_token: str | None = None
+    all_sessions: bool = False
+
+
+class PasswordForgotRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str

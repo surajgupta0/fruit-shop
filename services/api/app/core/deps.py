@@ -21,6 +21,22 @@ def get_current_user(
     return _shared_get_current_user(credentials, settings)  # type: ignore[arg-type]
 
 
+def get_optional_user(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(_bearer),
+    ],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> User | None:
+    """Return the JWT user when Authorization is valid; otherwise None."""
+    if credentials is None or not credentials.credentials:
+        return None
+    try:
+        return _shared_get_current_user(credentials, settings)  # type: ignore[arg-type]
+    except HTTPException:
+        return None
+
+
 def require_permissions(*permissions: str):
     """Require all listed permissions on the JWT."""
 

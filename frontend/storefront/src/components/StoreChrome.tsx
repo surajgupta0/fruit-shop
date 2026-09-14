@@ -141,7 +141,9 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
               </Link>
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => {
+                  void logout();
+                }}
                 className={
                   hero
                     ? "rounded-full px-3 py-2 text-white/80 hover:bg-white/10"

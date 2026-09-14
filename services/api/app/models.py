@@ -1,5 +1,5 @@
 from app.core.database import Base
-from app.modules.auth.models import OtpCode, RefreshToken, User, UserAddress  # noqa: F401
+from app.modules.auth.models import OtpCode, PasswordResetToken, RefreshToken, User, UserAddress  # noqa: F401
 from app.modules.cart.models import Cart, CartItem  # noqa: F401
 from app.modules.catalog.models import (  # noqa: F401
     Brand,
@@ -24,6 +24,7 @@ __all__ = [
     "UserAddress",
     "OtpCode",
     "RefreshToken",
+    "PasswordResetToken",
     "Role",
     "Permission",
     "RolePermission",

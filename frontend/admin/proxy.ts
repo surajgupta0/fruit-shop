@@ -4,7 +4,14 @@ import { shouldAllowRequest } from "@fruitshop/web-core";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const result = shouldAllowRequest(pathname, request.headers.get("cookie"), {
-    publicPaths: ["/login", "/signup", "/_next", "/favicon.ico"],
+    publicPaths: [
+      "/login",
+      "/signup",
+      "/forgot-password",
+      "/reset-password",
+      "/_next",
+      "/favicon.ico",
+    ],
     loginPath: "/login",
   });
 
@@ -17,7 +24,10 @@ export function proxy(request: NextRequest) {
 
   // Already logged in visiting auth pages → dashboard
   if (
-    (pathname === "/login" || pathname === "/signup") &&
+    (pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/forgot-password" ||
+      pathname === "/reset-password") &&
     shouldAllowRequest("/", request.headers.get("cookie")).allow
   ) {
     const url = request.nextUrl.clone();

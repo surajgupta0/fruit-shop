@@ -34,7 +34,7 @@ function SidebarBody({
   onNavigate?: () => void;
   userName: string;
   userMeta: string;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   nav: ReturnType<typeof visibleNav>;
   pathname: string;
 }) {
@@ -81,7 +81,9 @@ function SidebarBody({
           <p className="mt-0.5 truncate text-xs capitalize text-white/45">{userMeta}</p>
           <button
             type="button"
-            onClick={onLogout}
+            onClick={() => {
+              void onLogout();
+            }}
             className="mt-2.5 text-xs font-medium text-[var(--fs-mango)] hover:underline"
           >
             Sign out
@@ -139,7 +141,9 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     pathname,
     userName: user.name,
     userMeta,
-    onLogout: logout,
+    onLogout: () => {
+      void logout();
+    },
   };
 
   const content = (() => {

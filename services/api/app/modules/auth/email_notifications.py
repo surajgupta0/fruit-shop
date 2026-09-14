@@ -25,9 +25,43 @@ def _send_smtp_sync(*, settings: Settings, to: str, subject: str, body: str) -> 
         smtp.send_message(msg)
 
 
-def _log_otp_fallback(*, to: str, code: str, reason: str) -> None:
-    logger.warning("email_otp_fallback reason=%s to=%s code=%s", reason, to, code)
-    print(f"Email OTP fallback ({reason}) to {to}: {code}")
+def _log_email_fallback(*, to: str, reason: str, detail: str | None = None) -> None:
+    if detail:
+        logger.warning("email_fallback reason=%s to=%s detail=%s", reason, to, detail)
+        print(f"Email fallback ({reason}) to {to}: {detail}")
+    else:
+        logger.warning("email_fallback reason=%s to=%s", reason, to)
+        print(f"Email fallback ({reason}) to {to}")
+
+
+async def _send_email(*, to: str, subject: str, body: str, settings: Settings) -> bool:
+    """Send email. Returns True on success. Logs fallback on failure."""
+    normalized = to.strip().lower()
+    if not settings.SMTP_HOST:
+        _log_email_fallback(to=normalized, reason="smtp_not_configured", detail=body)
+        return False
+
+    try:
+        await asyncio.to_thread(
+            _send_smtp_sync,
+            settings=settings,
+            to=normalized,
+            subject=subject,
+            body=body,
+        )
+        logger.info("email_sent to=%s subject=%s", normalized, subject)
+        return True
+    except OSError as exc:
+        _log_email_fallback(
+            to=normalized,
+            reason=f"smtp_network:{exc}",
+            detail=body,
+        )
+        return False
+    except Exception:
+        logger.exception("email_failed to=%s", normalized)
+        _log_email_fallback(to=normalized, reason="smtp_error", detail=body)
+        return False
 
 
 async def send_email_otp(*, to: str, code: str, settings: Settings) -> None:
@@ -37,28 +71,39 @@ async def send_email_otp(*, to: str, code: str, settings: Settings) -> None:
     On failure we log the code and still succeed so login/signup can continue.
     """
     normalized = to.strip().lower()
-    if not settings.SMTP_HOST:
-        _log_otp_fallback(to=normalized, code=code, reason="smtp_not_configured")
-        return
-
     subject = "Your Fruit Shop sign-in code"
     body = (
         f"Your Fruit Shop verification code is: {code}\n\n"
         f"This code expires in {settings.OTP_TTL_MINUTES} minutes.\n"
         "If you did not request this, you can ignore this email."
     )
-    try:
-        await asyncio.to_thread(
-            _send_smtp_sync,
-            settings=settings,
-            to=normalized,
-            subject=subject,
-            body=body,
+    await _send_email(to=normalized, subject=subject, body=body, settings=settings)
+
+
+async def send_password_reset_email(
+    *,
+    to: str,
+    reset_token: str,
+    settings: Settings,
+) -> None:
+    """Send password-reset instructions (admin/staff)."""
+    normalized = to.strip().lower()
+    ttl = settings.PASSWORD_RESET_TTL_MINUTES
+    base = settings.PASSWORD_RESET_URL_BASE.strip().rstrip("/")
+    if base:
+        link = f"{base}?token={reset_token}"
+        link_line = f"Reset your password here:\n{link}\n\n"
+    else:
+        link_line = (
+            "Use this reset token in the admin app or API:\n"
+            f"{reset_token}\n\n"
         )
-        logger.info("email_otp_sent to=%s", normalized)
-    except OSError as exc:
-        # e.g. Errno 101 Network is unreachable on Render free
-        _log_otp_fallback(to=normalized, code=code, reason=f"smtp_network:{exc}")
-    except Exception:
-        logger.exception("email_otp_failed to=%s", normalized)
-        _log_otp_fallback(to=normalized, code=code, reason="smtp_error")
+
+    subject = "Reset your Fruit Shop password"
+    body = (
+        "We received a request to reset your Fruit Shop password.\n\n"
+        f"{link_line}"
+        f"This link/token expires in {ttl} minutes.\n"
+        "If you did not request a reset, you can ignore this email."
+    )
+    await _send_email(to=normalized, subject=subject, body=body, settings=settings)

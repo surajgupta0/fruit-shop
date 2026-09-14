@@ -31,6 +31,29 @@ export const authApi = {
     );
   },
 
+  logout(body?: { refresh_token?: string; all_sessions?: boolean }) {
+    return api.post<void>("/auth/logout", body ?? {}, {
+      auth: Boolean(body?.all_sessions),
+      toastOnError: false,
+    });
+  },
+
+  forgotPassword(email: string) {
+    return api.post<void>(
+      "/auth/password/forgot",
+      { email: email.trim().toLowerCase() },
+      { auth: false, successToast: "If that account exists, reset instructions were sent" },
+    );
+  },
+
+  resetPassword(token: string, new_password: string) {
+    return api.post<void>(
+      "/auth/password/reset",
+      { token, new_password },
+      { auth: false, successToast: "Password updated — sign in with your new password" },
+    );
+  },
+
   me() {
     return api.get<AuthUser>("/users/me");
   },

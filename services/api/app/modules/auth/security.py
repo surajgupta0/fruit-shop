@@ -33,6 +33,10 @@ def generate_refresh_token() -> str:
     return secrets.token_urlsafe(48)
 
 
+def generate_password_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
 def create_access_token(
     *,
     user_id: UUID | str,

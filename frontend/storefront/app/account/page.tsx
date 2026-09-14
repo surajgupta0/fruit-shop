@@ -196,10 +196,21 @@ function AccountOverview() {
           </Link>
           <button
             type="button"
-            onClick={logout}
+            onClick={() => {
+              void logout();
+            }}
             className="w-full rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-700 hover:bg-rose-50"
           >
             Sign out
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void logout({ allSessions: true });
+            }}
+            className="w-full rounded-xl border border-[var(--fs-line)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
+          >
+            Sign out everywhere
           </button>
         </div>
       </div>

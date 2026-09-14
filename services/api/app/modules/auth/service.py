@@ -1,22 +1,32 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.mixins import stamp_create, stamp_update
-from app.modules.auth.email_notifications import send_email_otp
-from app.modules.auth.models import OtpChannel, OtpCode, RefreshToken, User, UserRole
+from app.modules.auth.email_notifications import send_email_otp, send_password_reset_email
+from app.modules.auth.models import (
+    OtpChannel,
+    OtpCode,
+    PasswordResetToken,
+    RefreshToken,
+    User,
+    UserRole,
+)
 from app.modules.auth.notifications import send_otp_notification
 from app.modules.auth.schemas import TokenPair
 from app.modules.auth.security import (
     create_access_token,
     generate_otp,
+    generate_password_reset_token,
     generate_refresh_token,
+    hash_password,
     hash_token,
     verify_password,
 )
@@ -36,6 +46,13 @@ def _as_utc(value: datetime) -> datetime:
 
 def _normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def _parse_user_id(value: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(str(value))
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid user") from exc
 
 
 async def _issue_tokens(user: User, settings: Settings, session: AsyncSession) -> TokenPair:
@@ -135,7 +152,7 @@ async def request_otp(phone: str, settings: Settings, session: AsyncSession) -> 
             settings.ENVIRONMENT,
         )
     else:
-        await send_otp_notification(phone=phone, code=code)
+        await send_otp_notification(phone=phone, code=code, settings=settings)
         logger.info("otp_requested phone=%s", phone)
 
 
@@ -269,3 +286,136 @@ async def refresh(
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return await _issue_tokens(user, settings, session)
+
+
+async def _revoke_refresh_token(refresh_token: str, session: AsyncSession) -> bool:
+    result = await session.execute(
+        select(RefreshToken).where(RefreshToken.token_hash == hash_token(refresh_token))
+    )
+    stored = result.scalar_one_or_none()
+    if stored is None:
+        return False
+    if not stored.revoked:
+        stored.revoked = True
+        stamp_update(stored, stored.user_id)
+        await session.flush()
+    return True
+
+
+async def _revoke_all_refresh_tokens(user_id: uuid.UUID, session: AsyncSession) -> int:
+    result = await session.execute(
+        select(RefreshToken).where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.revoked.is_(False),
+        )
+    )
+    tokens = list(result.scalars().all())
+    for token in tokens:
+        token.revoked = True
+        stamp_update(token, user_id)
+    if tokens:
+        await session.flush()
+    return len(tokens)
+
+
+async def logout(
+    *,
+    refresh_token: str | None,
+    all_sessions: bool,
+    actor_id: str | None,
+    session: AsyncSession,
+) -> None:
+    """Revoke one refresh token and/or all sessions for the authenticated user."""
+    if not refresh_token and not all_sessions:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Provide refresh_token and/or all_sessions=true",
+        )
+
+    if all_sessions:
+        if not actor_id:
+            raise HTTPException(
+                status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization required to revoke all sessions",
+            )
+        await _revoke_all_refresh_tokens(_parse_user_id(actor_id), session)
+
+    if refresh_token:
+        await _revoke_refresh_token(refresh_token, session)
+
+
+async def request_password_reset(
+    email: str,
+    settings: Settings,
+    session: AsyncSession,
+) -> None:
+    """Start password reset for admin/staff. Always succeeds (no email enumeration)."""
+    normalized = _normalize_email(email)
+    result = await session.execute(select(User).where(User.email == normalized))
+    user = result.scalar_one_or_none()
+
+    if (
+        user is None
+        or not user.is_active
+        or user.password_hash is None
+        or user.role not in (UserRole.admin, UserRole.staff)
+    ):
+        logger.info("password_reset_ignored email=%s", normalized)
+        return
+
+    # Invalidate prior unused tokens for this user
+    await session.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.consumed.is_(False),
+        )
+        .values(consumed=True)
+    )
+
+    plain = generate_password_reset_token()
+    reset = PasswordResetToken(
+        user_id=user.id,
+        token_hash=hash_token(plain),
+        expires_at=_utcnow() + timedelta(minutes=settings.PASSWORD_RESET_TTL_MINUTES),
+    )
+    stamp_create(reset, user.id)
+    session.add(reset)
+    await session.flush()
+
+    await send_password_reset_email(to=normalized, reset_token=plain, settings=settings)
+    logger.info("password_reset_requested email=%s", normalized)
+
+
+async def reset_password(
+    token: str,
+    new_password: str,
+    session: AsyncSession,
+) -> None:
+    result = await session.execute(
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_token(token))
+    )
+    stored = result.scalar_one_or_none()
+    if (
+        stored is None
+        or stored.consumed
+        or _as_utc(stored.expires_at) < _utcnow()
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    user = await session.get(User, stored.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    if user.role not in (UserRole.admin, UserRole.staff):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Password reset not allowed")
+
+    user.password_hash = hash_password(new_password)
+    stamp_update(user, user.id)
+    stored.consumed = True
+    stamp_update(stored, user.id)
+    await _revoke_all_refresh_tokens(user.id, session)
+    await session.flush()
+    logger.info("password_reset_completed user_id=%s", user.id)
