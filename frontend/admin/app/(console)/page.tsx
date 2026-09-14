@@ -5,7 +5,18 @@ import { useMemo } from "react";
 import { useAuth, useQuery } from "@fruitshop/web-core";
 
 import { P } from "@/src/console/permissions";
-import { PageHeader, SectionLabel, StatusPill, Surface } from "@/src/console/ui";
+import {
+  AlertBanner,
+  EmptyState,
+  ErrorLine,
+  LoadingLine,
+  PageHeader,
+  PageLoader,
+  SectionLabel,
+  SkeletonBlock,
+  StatusPill,
+  Surface,
+} from "@/src/console/ui";
 import { catalogApi } from "@/src/modules/catalog/api";
 import { couponsApi } from "@/src/modules/coupons/api";
 import { inventoryApi } from "@/src/modules/inventory/api";
@@ -38,12 +49,14 @@ function Kpi({
   hint,
   tone = "neutral",
   href,
+  loading,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   tone?: "neutral" | "ok" | "warn" | "danger";
   href?: string;
+  loading?: boolean;
 }) {
   const toneBorder =
     tone === "danger"
@@ -54,7 +67,13 @@ function Kpi({
           ? "border-[var(--fs-leaf)]/25"
           : "border-[var(--fs-line)]";
 
-  const body = (
+  const body = loading ? (
+    <div className="space-y-3" aria-hidden>
+      <div className="h-2.5 w-20 animate-pulse rounded-full bg-[var(--fs-mist)]" />
+      <div className="h-8 w-14 animate-pulse rounded-md bg-[var(--fs-mist)]" />
+      <div className="h-2 w-28 animate-pulse rounded-full bg-[var(--fs-mist)]" />
+    </div>
+  ) : (
     <>
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
         {label}
@@ -66,7 +85,7 @@ function Kpi({
     </>
   );
 
-  if (href) {
+  if (href && !loading) {
     return (
       <Link
         href={href}
@@ -79,6 +98,7 @@ function Kpi({
   return (
     <div
       className={`rounded-[var(--fs-radius)] border bg-white p-4 shadow-[var(--fs-shadow-sm)] ${toneBorder}`}
+      aria-busy={loading || undefined}
     >
       {body}
     </div>
@@ -90,27 +110,46 @@ function PipelineStep({
   count,
   href,
   emphasize,
+  loading,
 }: {
   label: string;
   count: number | string;
   href: string;
   emphasize?: boolean;
+  loading?: boolean;
 }) {
-  return (
-    <Link
-      href={href}
-      className={`flex min-w-0 flex-1 flex-col rounded-xl border px-3 py-3 text-center transition hover:border-[var(--fs-leaf)]/40 ${
-        emphasize
-          ? "border-amber-200 bg-amber-50/60"
-          : "border-[var(--fs-line)] bg-[var(--fs-mist)]/30"
-      }`}
-    >
-      <span className="font-[family-name:var(--font-fraunces)] text-2xl tabular-nums text-[var(--fs-ink)]">
-        {count}
-      </span>
+  const content = (
+    <>
+      {loading ? (
+        <span className="mx-auto block h-7 w-10 animate-pulse rounded-md bg-[var(--fs-mist)]" />
+      ) : (
+        <span className="font-[family-name:var(--font-fraunces)] text-2xl tabular-nums text-[var(--fs-ink)]">
+          {count}
+        </span>
+      )}
       <span className="mt-1 text-[11px] font-medium uppercase tracking-wide text-[var(--fs-muted)]">
         {label}
       </span>
+    </>
+  );
+
+  const className = `flex min-w-0 flex-1 flex-col rounded-xl border px-3 py-3 text-center transition ${
+    emphasize
+      ? "border-amber-200 bg-amber-50/60"
+      : "border-[var(--fs-line)] bg-[var(--fs-mist)]/30"
+  } ${loading ? "" : "hover:border-[var(--fs-leaf)]/40"}`;
+
+  if (loading) {
+    return (
+      <div className={className} aria-busy>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {content}
     </Link>
   );
 }
@@ -212,6 +251,55 @@ export default function ConsoleOverviewPage() {
     { enabled: canNotifications },
   );
 
+  const activeQueries = useMemo(() => {
+    const q = [];
+    if (canCatalog) q.push(activeProducts, draftProducts);
+    if (canOrders) {
+      q.push(
+        pendingOrders,
+        confirmedOrders,
+        processingOrders,
+        shippedOrders,
+        deliveredOrders,
+        cancelledOrders,
+        recentOrders,
+        unpaidPaidFilter,
+      );
+    }
+    if (canInventory) q.push(lowStock, outOfStock);
+    if (canCoupons) q.push(coupons);
+    if (canNotifications) q.push(notificationLogs);
+    return q;
+  }, [
+    canCatalog,
+    canOrders,
+    canInventory,
+    canCoupons,
+    canNotifications,
+    activeProducts,
+    draftProducts,
+    pendingOrders,
+    confirmedOrders,
+    processingOrders,
+    shippedOrders,
+    deliveredOrders,
+    cancelledOrders,
+    recentOrders,
+    unpaidPaidFilter,
+    lowStock,
+    outOfStock,
+    coupons,
+    notificationLogs,
+  ]);
+
+  const isBootstrapping =
+    activeQueries.length > 0 && activeQueries.every((q) => q.isLoading && !q.data && !q.error);
+  const hasAnyError = activeQueries.some((q) => Boolean(q.error));
+  const failedMessages = activeQueries
+    .filter((q) => q.error)
+    .map((q) => q.error!.message)
+    .filter((msg, i, arr) => arr.indexOf(msg) === i);
+
   const pipeline = useMemo(
     () => ({
       pending: pendingOrders.data?.total ?? 0,
@@ -253,9 +341,17 @@ export default function ConsoleOverviewPage() {
   const draftTotal = draftProducts.data?.total ?? 0;
   const activeTotal = activeProducts.data?.total ?? 0;
 
+  const ordersLoading =
+    pendingOrders.isLoading ||
+    confirmedOrders.isLoading ||
+    processingOrders.isLoading ||
+    shippedOrders.isLoading ||
+    deliveredOrders.isLoading;
+  const inventoryLoading = lowStock.isLoading || outOfStock.isLoading;
+
   const attention = useMemo(() => {
     const items: AttentionItem[] = [];
-    if (canOrders && toFulfil > 0) {
+    if (canOrders && !ordersLoading && toFulfil > 0) {
       items.push({
         id: "fulfil",
         severity: "warn",
@@ -265,7 +361,7 @@ export default function ConsoleOverviewPage() {
         cta: "Open queue",
       });
     }
-    if (canOrders && awaitingPayment > 0) {
+    if (canOrders && !unpaidPaidFilter.isLoading && awaitingPayment > 0) {
       items.push({
         id: "pay",
         severity: "warn",
@@ -275,7 +371,7 @@ export default function ConsoleOverviewPage() {
         cta: "Review",
       });
     }
-    if (canInventory && outStockTotal > 0) {
+    if (canInventory && !inventoryLoading && outStockTotal > 0) {
       items.push({
         id: "oos",
         severity: "danger",
@@ -284,7 +380,7 @@ export default function ConsoleOverviewPage() {
         href: "/inventory",
         cta: "Restock",
       });
-    } else if (canInventory && lowStockTotal > 0) {
+    } else if (canInventory && !inventoryLoading && lowStockTotal > 0) {
       items.push({
         id: "low",
         severity: "warn",
@@ -294,7 +390,7 @@ export default function ConsoleOverviewPage() {
         cta: "View stock",
       });
     }
-    if (canNotifications && failedNotifications.length > 0) {
+    if (canNotifications && !notificationLogs.isLoading && failedNotifications.length > 0) {
       items.push({
         id: "notify",
         severity: "danger",
@@ -304,7 +400,13 @@ export default function ConsoleOverviewPage() {
         cta: "Inspect logs",
       });
     }
-    if (canCatalog && draftTotal > 0 && activeTotal === 0) {
+    if (
+      canCatalog &&
+      !activeProducts.isLoading &&
+      !draftProducts.isLoading &&
+      draftTotal > 0 &&
+      activeTotal === 0
+    ) {
       items.push({
         id: "catalog",
         severity: "warn",
@@ -314,7 +416,7 @@ export default function ConsoleOverviewPage() {
         cta: "Publish",
       });
     }
-    if (items.length === 0) {
+    if (items.length === 0 && !isBootstrapping) {
       items.push({
         id: "ok",
         severity: "ok",
@@ -330,6 +432,12 @@ export default function ConsoleOverviewPage() {
     canInventory,
     canNotifications,
     canCatalog,
+    ordersLoading,
+    inventoryLoading,
+    unpaidPaidFilter.isLoading,
+    notificationLogs.isLoading,
+    activeProducts.isLoading,
+    draftProducts.isLoading,
     toFulfil,
     awaitingPayment,
     outStockTotal,
@@ -337,9 +445,11 @@ export default function ConsoleOverviewPage() {
     failedNotifications.length,
     draftTotal,
     activeTotal,
+    isBootstrapping,
   ]);
 
   const urgentCount = attention.filter((a) => a.severity !== "ok").length;
+  const topAlert = attention.find((a) => a.severity === "danger") ?? attention.find((a) => a.severity === "warn");
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const asOf = new Date().toLocaleString("en-IN", {
     weekday: "short",
@@ -348,6 +458,25 @@ export default function ConsoleOverviewPage() {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  if (isBootstrapping) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-8">
+        <PageHeader
+          title={`Good to see you, ${firstName}`}
+          description={`Operations pulse · ${asOf}`}
+          actions={<StatusPill tone="neutral">Syncing</StatusPill>}
+        />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+        <PageLoader />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -363,7 +492,51 @@ export default function ConsoleOverviewPage() {
         }
       />
 
-      {/* KPI strip — industry command view */}
+      {hasAnyError && (
+        <AlertBanner
+          tone="danger"
+          title="Some overview signals couldn’t load"
+          action={
+            <button
+              type="button"
+              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800 transition hover:bg-rose-50"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+          }
+        >
+          {failedMessages[0] ?? "Please refresh or try again in a moment."}
+          {failedMessages.length > 1
+            ? ` (+${failedMessages.length - 1} more)`
+            : null}
+        </AlertBanner>
+      )}
+
+      {!hasAnyError && topAlert && topAlert.severity !== "ok" && (
+        <AlertBanner
+          tone={topAlert.severity}
+          title={topAlert.title}
+          action={
+            <Link
+              href={topAlert.href}
+              className="inline-flex rounded-lg border border-current/20 bg-white/70 px-3 py-1.5 text-xs font-semibold transition hover:bg-white"
+            >
+              {topAlert.cta} →
+            </Link>
+          }
+        >
+          {topAlert.detail}
+        </AlertBanner>
+      )}
+
+      {!hasAnyError && urgentCount === 0 && (
+        <AlertBanner tone="ok" title="Operations look steady">
+          Fulfilment, stock, and delivery signals are within expected ranges.
+        </AlertBanner>
+      )}
+
+      {/* KPI strip */}
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {canOrders && (
           <>
@@ -373,18 +546,21 @@ export default function ConsoleOverviewPage() {
               hint="Confirmed + packing"
               tone={toFulfil > 0 ? "warn" : "ok"}
               href="/orders?status=confirmed"
+              loading={ordersLoading}
             />
             <Kpi
               label="In transit"
               value={inTransit}
               hint="Shipped, not delivered"
               href="/orders?status=shipped"
+              loading={shippedOrders.isLoading}
             />
             <Kpi
               label="Recent page GMV"
-              value={recentOrders.isLoading ? "…" : formatMoney(recentRevenue)}
+              value={formatMoney(recentRevenue)}
               hint="Sum of latest 8 orders (excl. cancelled)"
               href="/orders"
+              loading={recentOrders.isLoading}
             />
           </>
         )}
@@ -401,6 +577,7 @@ export default function ConsoleOverviewPage() {
             }
             tone={outStockTotal > 0 ? "danger" : lowStockTotal > 0 ? "warn" : "ok"}
             href="/inventory"
+            loading={inventoryLoading}
           />
         )}
         {!canOrders && canCatalog && (
@@ -409,42 +586,45 @@ export default function ConsoleOverviewPage() {
             value={activeTotal}
             hint={`${draftTotal} drafts`}
             href="/products?status=active"
+            loading={activeProducts.isLoading || draftProducts.isLoading}
           />
         )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        {/* Attention queue */}
         <section className="lg:col-span-2">
           <SectionLabel>Needs attention</SectionLabel>
           <Surface className="divide-y divide-[var(--fs-line)]">
-            {attention.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 px-4 py-4 sm:px-5">
-                <StatusPill tone={item.severity}>
-                  {item.severity === "ok"
-                    ? "OK"
-                    : item.severity === "danger"
-                      ? "Urgent"
-                      : "Action"}
-                </StatusPill>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[var(--fs-ink)]">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-[var(--fs-muted)]">{item.detail}</p>
-                  {item.severity !== "ok" && (
-                    <Link
-                      href={item.href}
-                      className="mt-2 inline-block text-xs font-semibold text-[var(--fs-leaf)] hover:underline"
-                    >
-                      {item.cta} →
-                    </Link>
-                  )}
+            {attention.length === 0 ? (
+              <LoadingLine label="Evaluating priorities…" />
+            ) : (
+              attention.map((item) => (
+                <div key={item.id} className="flex items-start gap-3 px-4 py-4 sm:px-5">
+                  <StatusPill tone={item.severity}>
+                    {item.severity === "ok"
+                      ? "OK"
+                      : item.severity === "danger"
+                        ? "Urgent"
+                        : "Action"}
+                  </StatusPill>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--fs-ink)]">{item.title}</p>
+                    <p className="mt-0.5 text-xs text-[var(--fs-muted)]">{item.detail}</p>
+                    {item.severity !== "ok" && (
+                      <Link
+                        href={item.href}
+                        className="mt-2 inline-block text-xs font-semibold text-[var(--fs-leaf)] hover:underline"
+                      >
+                        {item.cta} →
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </Surface>
         </section>
 
-        {/* Fulfilment pipeline */}
         {canOrders && (
           <section className="lg:col-span-3">
             <SectionLabel>Fulfilment pipeline</SectionLabel>
@@ -452,31 +632,36 @@ export default function ConsoleOverviewPage() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                 <PipelineStep
                   label="Pending"
-                  count={pendingOrders.isLoading ? "…" : pipeline.pending}
+                  count={pipeline.pending}
                   href="/orders?status=pending"
                   emphasize={pipeline.pending > 0}
+                  loading={pendingOrders.isLoading}
                 />
                 <PipelineStep
                   label="Confirmed"
-                  count={confirmedOrders.isLoading ? "…" : pipeline.confirmed}
+                  count={pipeline.confirmed}
                   href="/orders?status=confirmed"
                   emphasize={pipeline.confirmed > 0}
+                  loading={confirmedOrders.isLoading}
                 />
                 <PipelineStep
                   label="Packing"
-                  count={processingOrders.isLoading ? "…" : pipeline.processing}
+                  count={pipeline.processing}
                   href="/orders?status=processing"
                   emphasize={pipeline.processing > 0}
+                  loading={processingOrders.isLoading}
                 />
                 <PipelineStep
                   label="Shipped"
-                  count={shippedOrders.isLoading ? "…" : pipeline.shipped}
+                  count={pipeline.shipped}
                   href="/orders?status=shipped"
+                  loading={shippedOrders.isLoading}
                 />
                 <PipelineStep
                   label="Delivered"
-                  count={deliveredOrders.isLoading ? "…" : pipeline.delivered}
+                  count={pipeline.delivered}
                   href="/orders?status=delivered"
+                  loading={deliveredOrders.isLoading}
                 />
               </div>
               <p className="mt-4 text-xs text-[var(--fs-muted)]">
@@ -491,7 +676,6 @@ export default function ConsoleOverviewPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent orders */}
         {canOrders && (
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
@@ -501,13 +685,13 @@ export default function ConsoleOverviewPage() {
               </Link>
             </div>
             <Surface>
-              {recentOrders.isLoading && (
-                <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">Loading orders…</p>
-              )}
+              {recentOrders.isLoading && <LoadingLine label="Loading orders…" />}
+              {recentOrders.error && <ErrorLine message={recentOrders.error.message} />}
               {recentOrders.data && recentOrders.data.items.length === 0 && (
-                <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">
-                  No orders yet — storefront checkouts will appear here.
-                </p>
+                <EmptyState
+                  title="No orders yet"
+                  body="Storefront checkouts will appear here as soon as customers place orders."
+                />
               )}
               {recentOrders.data && recentOrders.data.items.length > 0 && (
                 <div className="overflow-x-auto">
@@ -561,7 +745,6 @@ export default function ConsoleOverviewPage() {
           </section>
         )}
 
-        {/* Stock risk */}
         {canInventory && (
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
@@ -571,13 +754,13 @@ export default function ConsoleOverviewPage() {
               </Link>
             </div>
             <Surface>
-              {lowStock.isLoading && (
-                <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">Scanning stock…</p>
-              )}
+              {lowStock.isLoading && <LoadingLine label="Scanning stock levels…" />}
+              {lowStock.error && <ErrorLine message={lowStock.error.message} />}
               {lowStock.data && lowStock.data.items.length === 0 && (
-                <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">
-                  All tracked SKUs are above threshold.
-                </p>
+                <EmptyState
+                  title="Stock looks healthy"
+                  body="All tracked SKUs are above threshold. No restock action needed."
+                />
               )}
               {lowStock.data && lowStock.data.items.length > 0 && (
                 <div className="overflow-x-auto">
@@ -620,7 +803,6 @@ export default function ConsoleOverviewPage() {
         )}
       </div>
 
-      {/* Secondary health row — catalog / offers / notifications */}
       <section>
         <SectionLabel>Store health</SectionLabel>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -628,39 +810,39 @@ export default function ConsoleOverviewPage() {
             <>
               <Kpi
                 label="Live catalog"
-                value={activeProducts.isLoading ? "…" : activeTotal}
+                value={activeTotal}
                 hint="Active products on storefront"
                 href="/products?status=active"
                 tone={activeTotal > 0 ? "ok" : "warn"}
+                loading={activeProducts.isLoading}
               />
               <Kpi
                 label="Drafts"
-                value={draftProducts.isLoading ? "…" : draftTotal}
+                value={draftTotal}
                 hint="Not published yet"
                 href="/products?status=draft"
                 tone={draftTotal > 5 ? "warn" : "neutral"}
+                loading={draftProducts.isLoading}
               />
             </>
           )}
           {canCoupons && (
             <Kpi
               label="Active offers"
-              value={coupons.isLoading ? "…" : activeCouponCount}
+              value={activeCouponCount}
               hint="Coupons customers can browse"
               href="/coupons"
+              loading={coupons.isLoading}
             />
           )}
           {canNotifications && (
             <Kpi
               label="Notify failures"
-              value={
-                notificationLogs.isLoading
-                  ? "…"
-                  : failedNotifications.length
-              }
+              value={failedNotifications.length}
               hint="In latest delivery log sample"
               href="/notifications"
               tone={failedNotifications.length > 0 ? "danger" : "ok"}
+              loading={notificationLogs.isLoading}
             />
           )}
         </div>
