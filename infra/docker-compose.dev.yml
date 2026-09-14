@@ -18,7 +18,8 @@ services:
       # Local CA only — not in git; keep services/api/certs/aiven-ca.pem on your machine
       - ../services/api/certs:/app/certs:ro
     environment:
-      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      OTP_STATIC_CODE: ${OTP_STATIC_CODE:-123456}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT:-5432}

@@ -73,7 +73,8 @@ async def _store_otp(
     settings: Settings,
     session: AsyncSession,
 ) -> str:
-    code = generate_otp(settings.OTP_LENGTH)
+    static = settings.static_otp_code
+    code = static if static is not None else generate_otp(settings.OTP_LENGTH)
     otp = OtpCode(
         channel=channel,
         phone=phone,
@@ -127,8 +128,15 @@ async def request_otp(phone: str, settings: Settings, session: AsyncSession) -> 
         settings=settings,
         session=session,
     )
-    await send_otp_notification(phone=phone, code=code)
-    logger.info("otp_requested phone=%s", phone)
+    if settings.use_static_otp:
+        logger.info(
+            "otp_static_mode phone=%s env=%s (SMS not sent; use OTP_STATIC_CODE)",
+            phone,
+            settings.ENVIRONMENT,
+        )
+    else:
+        await send_otp_notification(phone=phone, code=code)
+        logger.info("otp_requested phone=%s", phone)
 
 
 async def request_email_otp(email: str, settings: Settings, session: AsyncSession) -> None:
@@ -140,8 +148,15 @@ async def request_email_otp(email: str, settings: Settings, session: AsyncSessio
         settings=settings,
         session=session,
     )
-    await send_email_otp(to=normalized, code=code, settings=settings)
-    logger.info("email_otp_requested email=%s", normalized)
+    if settings.use_static_otp:
+        logger.info(
+            "otp_static_mode email=%s env=%s (email not sent; use OTP_STATIC_CODE)",
+            normalized,
+            settings.ENVIRONMENT,
+        )
+    else:
+        await send_email_otp(to=normalized, code=code, settings=settings)
+        logger.info("email_otp_requested email=%s", normalized)
 
 
 async def verify_otp(

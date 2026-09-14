@@ -25,12 +25,20 @@ def _send_smtp_sync(*, settings: Settings, to: str, subject: str, body: str) -> 
         smtp.send_message(msg)
 
 
+def _log_otp_fallback(*, to: str, code: str, reason: str) -> None:
+    logger.warning("email_otp_fallback reason=%s to=%s code=%s", reason, to, code)
+    print(f"Email OTP fallback ({reason}) to {to}: {code}")
+
+
 async def send_email_otp(*, to: str, code: str, settings: Settings) -> None:
-    """Send OTP by email. Falls back to console logging when SMTP is not configured."""
+    """Send OTP by email.
+
+    Render free tier often blocks outbound SMTP (Network unreachable).
+    On failure we log the code and still succeed so login/signup can continue.
+    """
     normalized = to.strip().lower()
     if not settings.SMTP_HOST:
-        logger.info("email_otp_stub to=%s code=%s", normalized, code)
-        print(f"Email OTP sent to {normalized}: {code}")
+        _log_otp_fallback(to=normalized, code=code, reason="smtp_not_configured")
         return
 
     subject = "Your Fruit Shop sign-in code"
@@ -48,6 +56,9 @@ async def send_email_otp(*, to: str, code: str, settings: Settings) -> None:
             body=body,
         )
         logger.info("email_otp_sent to=%s", normalized)
+    except OSError as exc:
+        # e.g. Errno 101 Network is unreachable on Render free
+        _log_otp_fallback(to=normalized, code=code, reason=f"smtp_network:{exc}")
     except Exception:
         logger.exception("email_otp_failed to=%s", normalized)
-        raise
+        _log_otp_fallback(to=normalized, code=code, reason="smtp_error")

@@ -64,6 +64,14 @@ def _to_order_response(order: Order) -> OrderResponse:
     return OrderResponse.model_validate(order)
 
 
+async def _order_response_after_write(
+    order: Order, session: AsyncSession
+) -> OrderResponse:
+    """Re-load order after flush so async ORM attrs are fresh (avoids MissingGreenlet)."""
+    await session.flush()
+    return _to_order_response(await get_order_or_404(order.id, session))
+
+
 async def _get_order_or_404(order_id: str | uuid.UUID, session: AsyncSession) -> Order:
     return await get_order_or_404(order_id, session)
 
@@ -191,9 +199,7 @@ async def checkout(
         await session.delete(item)
     cart.items = []
 
-    await session.flush()
-    await session.refresh(order, ["items"])
-    return _to_order_response(order)
+    return await _order_response_after_write(order, session)
 
 
 async def list_my_orders(
@@ -278,9 +284,7 @@ async def cancel_my_order(
         payment.status = PaymentStatus.refunded
         stamp_update(payment, aid)
 
-    await session.flush()
-    await session.refresh(order, attribute_names=["items"])
-    return _to_order_response(order)
+    return await _order_response_after_write(order, session)
 
 
 async def _restore_stock(
@@ -354,6 +358,4 @@ async def update_order_admin(
             stamp_update(payment, aid)
 
     stamp_update(order, aid)
-    await session.flush()
-    await session.refresh(order, attribute_names=["items"])
-    return _to_order_response(order)
+    return await _order_response_after_write(order, session)
