@@ -1,0 +1,4 @@
+{
+  "installCommand": "cd ../.. && npm install --include=optional --foreground-scripts",
+  "buildCommand": "cd ../.. && npm run build -w admin"
+}
