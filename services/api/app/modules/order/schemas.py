@@ -21,6 +21,7 @@ class CheckoutRequest(BaseModel):
     payment_method: PaymentMethod = PaymentMethod.cod
     coupon_code: str | None = Field(default=None, max_length=40)
     notes: str | None = Field(default=None, max_length=1000)
+    idempotency_key: str | None = Field(default=None, max_length=120)
 
 
 class CancelOrderRequest(BaseModel):
@@ -42,6 +43,17 @@ class OrderItemResponse(AuditFields):
     tax_percent: Decimal | None = None
     tax_amount: Decimal
     line_total: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class OrderStatusEventResponse(BaseModel):
+    id: UUID | str
+    from_status: str | None = None
+    to_status: str
+    note: str | None = None
+    actor_id: UUID | str | None = None
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -74,7 +86,14 @@ class OrderResponse(AuditFields):
     notes: str | None = None
     cancelled_at: datetime | None = None
     cancel_reason: str | None = None
+    tracking_number: str | None = None
+    carrier: str | None = None
+    shipped_at: datetime | None = None
+    delivered_at: datetime | None = None
+    # Staff-only; omitted/null for customers via to_customer_response
+    internal_notes: str | None = None
     items: list[OrderItemResponse]
+    timeline: list[OrderStatusEventResponse] = []
 
     model_config = {"from_attributes": True}
 
@@ -89,3 +108,17 @@ class OrderListResponse(BaseModel):
 class AdminOrderUpdate(BaseModel):
     status: OrderStatus | None = None
     payment_status: PaymentStatus | None = None
+    tracking_number: str | None = Field(default=None, max_length=120)
+    carrier: str | None = Field(default=None, max_length=80)
+    internal_notes: str | None = None
+    cancel_reason: str | None = Field(default=None, max_length=500)
+
+
+class ShipOrderRequest(BaseModel):
+    tracking_number: str | None = Field(default=None, max_length=120)
+    carrier: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class InternalNoteRequest(BaseModel):
+    note: str = Field(min_length=1, max_length=5000)

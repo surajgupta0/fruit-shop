@@ -7,9 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.mixins import stamp_create, stamp_update
 from app.modules.catalog.models import ProductVariant
 from app.modules.inventory import service as inventory_service
-from app.modules.order.models import Order
+from app.modules.order.models import Order, OrderStatusEvent
 
 
 def parse_uuid(value: str | uuid.UUID, *, label: str = "id") -> uuid.UUID:
@@ -25,7 +26,10 @@ async def get_order_or_404(order_id: str | uuid.UUID, session: AsyncSession) -> 
         await session.execute(
             select(Order)
             .where(Order.id == oid)
-            .options(selectinload(Order.items))
+            .options(
+                selectinload(Order.items),
+                selectinload(Order.status_events),
+            )
         )
     ).scalar_one_or_none()
     if order is None:
@@ -64,3 +68,25 @@ async def restore_stock(
     await inventory_service.restore_order_stock(
         order.id, lines, session, actor_id=actor_id
     )
+
+
+async def record_status_event(
+    order: Order,
+    *,
+    from_status: str | None,
+    to_status: str,
+    note: str | None,
+    actor_id: uuid.UUID | None,
+    session: AsyncSession,
+) -> OrderStatusEvent:
+    event = OrderStatusEvent(
+        order_id=order.id,
+        from_status=from_status,
+        to_status=to_status,
+        note=note,
+        actor_id=actor_id,
+    )
+    stamp_create(event, actor_id)
+    session.add(event)
+    await session.flush()
+    return event

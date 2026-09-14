@@ -88,10 +88,23 @@ class Order(AuditMixin, Base):
     customer_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    internal_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     cancel_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    tracking_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    carrier: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    shipped_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(120), unique=True, nullable=True, index=True
+    )
 
     coupon_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -106,6 +119,33 @@ class Order(AuditMixin, Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    status_events: Mapped[list[OrderStatusEvent]] = relationship(
+        back_populates="order",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="OrderStatusEvent.created_at",
+    )
+
+
+class OrderStatusEvent(AuditMixin, Base):
+    __tablename__ = "order_status_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        index=True,
+    )
+    from_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    to_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    order: Mapped[Order] = relationship(back_populates="status_events", foreign_keys=[order_id])
 
 
 class OrderItem(AuditMixin, Base):
