@@ -8,6 +8,17 @@ class OtpRequest(BaseModel):
 class OtpVerify(BaseModel):
     phone: str = Field(min_length=8, max_length=32)
     code: str = Field(min_length=4, max_length=8)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+
+
+class EmailOtpRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailOtpVerify(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=8)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class LoginRequest(BaseModel):

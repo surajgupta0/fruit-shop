@@ -1,24 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hasAccessCookie } from "@fruitshop/web-core";
 
-/** Customer account requires OTP session; shop + auth pages stay public. */
-export function middleware(request: NextRequest) {
+/** Customer account + checkout require OTP session; login/signup always public. */
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const loggedIn = hasAccessCookie(request.headers.get("cookie"));
 
-  const isAccount = pathname === "/account" || pathname.startsWith("/account/");
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isProtected =
+    pathname === "/account" ||
+    pathname.startsWith("/account/") ||
+    pathname === "/cart" ||
+    pathname === "/checkout";
 
-  if (isAccount && !loggedIn) {
+  if (isProtected && !loggedIn) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (isAuthPage && loggedIn) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/account";
     return NextResponse.redirect(url);
   }
 

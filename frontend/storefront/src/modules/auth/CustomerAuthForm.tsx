@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useMutation } from "@fruitshop/web-core";
 
+import { isValidEmail, normalizeEmail } from "@/src/lib/email";
 import { formatPhoneDisplay, isValidPhone, normalizePhone } from "@/src/lib/phone";
 
 type Mode = "login" | "signup";
+type Channel = "phone" | "email";
 
 type Props = {
   mode: Mode;
@@ -16,19 +18,38 @@ type Props = {
 const RESEND_SECONDS = 30;
 
 export function CustomerAuthForm({ mode }: Props) {
-  const { requestOtp, verifyOtp, isAuthenticated, bootstrapping } = useAuth();
+  const {
+    requestOtp,
+    verifyOtp,
+    requestEmailOtp,
+    verifyEmailOtp,
+    isAuthenticated,
+    bootstrapping,
+  } = useAuth();
   const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next") || "/account";
 
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [channel, setChannel] = useState<Channel>("phone");
+  const [step, setStep] = useState<"identifier" | "otp">("identifier");
   const [phone, setPhone] = useState("+91");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [phoneError, setPhoneError] = useState("");
+  const [fieldError, setFieldError] = useState("");
   const [resendIn, setResendIn] = useState(0);
 
-  const sendMutation = useMutation(async (p: string) => requestOtp(p));
-  const verifyMutation = useMutation(async (p: string, c: string) => verifyOtp(p, c));
+  const phoneSendMutation = useMutation(async (p: string) => requestOtp(p));
+  const phoneVerifyMutation = useMutation(async (p: string, c: string, n?: string) =>
+    verifyOtp(p, c, n),
+  );
+  const emailSendMutation = useMutation(async (e: string) => requestEmailOtp(e));
+  const emailVerifyMutation = useMutation(async (e: string, c: string, n?: string) =>
+    verifyEmailOtp(e, c, n),
+  );
+
+  const sending = phoneSendMutation.isLoading || emailSendMutation.isLoading;
+  const verifying = phoneVerifyMutation.isLoading || emailVerifyMutation.isLoading;
 
   useEffect(() => {
     if (!bootstrapping && isAuthenticated) router.replace(next);
@@ -40,32 +61,52 @@ export function CustomerAuthForm({ mode }: Props) {
     return () => window.clearTimeout(t);
   }, [resendIn]);
 
-  async function sendCode(normalized: string) {
-    await sendMutation.mutate(normalized);
+  function switchChannel(nextChannel: Channel) {
+    setChannel(nextChannel);
+    setFieldError("");
+    setStep("identifier");
+    setCode("");
+  }
+
+  async function sendCode() {
+    if (channel === "phone") {
+      const normalized = normalizePhone(phone);
+      await phoneSendMutation.mutate(normalized);
+      setPhone(normalized);
+    } else {
+      const normalized = normalizeEmail(email);
+      await emailSendMutation.mutate(normalized);
+      setEmail(normalized);
+    }
     setStep("otp");
     setResendIn(RESEND_SECONDS);
   }
 
   async function onSendOtp(event: FormEvent) {
     event.preventDefault();
-    setPhoneError("");
-    if (!isValidPhone(phone)) {
-      setPhoneError("Enter a valid mobile number (10 digits or +91…).");
+    setFieldError("");
+
+    if (channel === "phone") {
+      if (!isValidPhone(phone)) {
+        setFieldError("Enter a valid mobile number (10 digits or +91…).");
+        return;
+      }
+    } else if (!isValidEmail(email)) {
+      setFieldError("Enter a valid email address.");
       return;
     }
-    const normalized = normalizePhone(phone);
-    setPhone(normalized);
+
     try {
-      await sendCode(normalized);
+      await sendCode();
     } catch {
       /* toast */
     }
   }
 
   async function onResend() {
-    if (resendIn > 0 || sendMutation.isLoading) return;
+    if (resendIn > 0 || sending) return;
     try {
-      await sendCode(normalizePhone(phone));
+      await sendCode();
     } catch {
       /* toast */
     }
@@ -74,7 +115,19 @@ export function CustomerAuthForm({ mode }: Props) {
   async function onVerify(event: FormEvent) {
     event.preventDefault();
     try {
-      await verifyMutation.mutate(normalizePhone(phone), code.trim());
+      if (channel === "phone") {
+        await phoneVerifyMutation.mutate(
+          normalizePhone(phone),
+          code.trim(),
+          isSignup ? name.trim() : undefined,
+        );
+      } else {
+        await emailVerifyMutation.mutate(
+          normalizeEmail(email),
+          code.trim(),
+          isSignup ? name.trim() : undefined,
+        );
+      }
       router.replace(next);
     } catch {
       /* toast */
@@ -84,8 +137,11 @@ export function CustomerAuthForm({ mode }: Props) {
   const isSignup = mode === "signup";
   const headline = isSignup ? "Join Fruit Shop" : "Welcome back";
   const sub = isSignup
-    ? "Verify your mobile number — new shoppers are signed up automatically."
-    : "Sign in with your phone. We’ll text a one-time code — no password.";
+    ? "Sign up with your mobile or email — we’ll send a one-time code."
+    : "Sign in with mobile OTP or email code — no password needed.";
+
+  const destinationLabel =
+    channel === "phone" ? formatPhoneDisplay(phone) : normalizeEmail(email);
 
   if (bootstrapping) {
     return (
@@ -130,14 +186,14 @@ export function CustomerAuthForm({ mode }: Props) {
           </h1>
           <p className="mt-4 max-w-md text-sm text-white/70 sm:text-base">{sub}</p>
           <ul className="mt-8 space-y-2 text-sm text-white/55">
-            <li>OTP login — no password to remember</li>
-            <li>Same number for sign in and sign up</li>
-            <li>Your orders stay on this phone</li>
+            <li>Mobile OTP or email verification code</li>
+            <li>Same account whether you use phone or email</li>
+            <li>Your orders stay linked to your profile</li>
           </ul>
         </section>
 
         <section className="fs-rise-delay mx-auto w-full max-w-md">
-          {step === "phone" ? (
+          {step === "identifier" ? (
             <form
               onSubmit={onSendOtp}
               className="rounded-3xl border border-white/20 bg-white/95 p-7 shadow-[0_24px_60px_rgba(0,0,0,0.28)] backdrop-blur"
@@ -146,38 +202,113 @@ export function CustomerAuthForm({ mode }: Props) {
               <h2 className="font-[family-name:var(--font-fraunces)] text-2xl text-[var(--fs-ink)]">
                 {isSignup ? "Sign up" : "Sign in"}
               </h2>
-              <p className="mt-1 text-sm text-[var(--fs-muted)]">Mobile OTP verification</p>
+              <p className="mt-1 text-sm text-[var(--fs-muted)]">Choose how you want to verify</p>
 
-              <label className="mt-6 block space-y-1.5 text-sm">
-                <span className="font-medium text-stone-700">Phone number</span>
-                <input
-                  className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
-                  type="tel"
-                  name="phone"
-                  autoComplete="tel"
-                  placeholder="+91 98XXXXXXXX"
-                  value={phone}
-                  onChange={(e) => {
-                    setPhone(e.target.value);
-                    setPhoneError("");
-                  }}
-                  required
-                />
-                {phoneError ? (
-                  <span className="block text-xs text-rose-600">{phoneError}</span>
-                ) : (
-                  <span className="block text-xs text-[var(--fs-muted)]">
-                    We’ll send a 6-digit code by SMS
-                  </span>
-                )}
-              </label>
+              <div
+                className="mt-5 grid grid-cols-2 gap-1 rounded-xl bg-[var(--fs-mist)] p-1"
+                role="tablist"
+                aria-label="Sign-in method"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={channel === "phone"}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    channel === "phone"
+                      ? "bg-white text-[var(--fs-ink)] shadow-sm"
+                      : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
+                  }`}
+                  onClick={() => switchChannel("phone")}
+                >
+                  Mobile
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={channel === "email"}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    channel === "email"
+                      ? "bg-white text-[var(--fs-ink)] shadow-sm"
+                      : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
+                  }`}
+                  onClick={() => switchChannel("email")}
+                >
+                  Email
+                </button>
+              </div>
+
+              {isSignup && (
+                <label className="mt-6 block space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Your name</span>
+                  <input
+                    className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                    type="text"
+                    name="name"
+                    autoComplete="name"
+                    placeholder="How should we greet you?"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </label>
+              )}
+
+              {channel === "phone" ? (
+                <label className={`block space-y-1.5 text-sm ${isSignup ? "mt-4" : "mt-6"}`}>
+                  <span className="font-medium text-stone-700">Phone number</span>
+                  <input
+                    className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                    type="tel"
+                    name="phone"
+                    autoComplete="tel"
+                    placeholder="+91 98XXXXXXXX"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldError("");
+                    }}
+                    required
+                  />
+                  {fieldError ? (
+                    <span className="block text-xs text-rose-600">{fieldError}</span>
+                  ) : (
+                    <span className="block text-xs text-[var(--fs-muted)]">
+                      We’ll send a 6-digit code by SMS
+                    </span>
+                  )}
+                </label>
+              ) : (
+                <label className={`block space-y-1.5 text-sm ${isSignup ? "mt-4" : "mt-6"}`}>
+                  <span className="font-medium text-stone-700">Email address</span>
+                  <input
+                    className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFieldError("");
+                    }}
+                    required
+                  />
+                  {fieldError ? (
+                    <span className="block text-xs text-rose-600">{fieldError}</span>
+                  ) : (
+                    <span className="block text-xs text-[var(--fs-muted)]">
+                      We’ll email a 6-digit verification code
+                    </span>
+                  )}
+                </label>
+              )}
 
               <button
                 type="submit"
-                disabled={sendMutation.isLoading}
+                disabled={sending}
                 className="mt-6 w-full rounded-xl bg-[var(--fs-leaf-deep)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--fs-leaf)] disabled:opacity-60"
               >
-                {sendMutation.isLoading ? "Sending…" : "Send OTP"}
+                {sending ? "Sending…" : channel === "phone" ? "Send OTP" : "Send email code"}
               </button>
 
               <p className="mt-5 text-center text-sm text-[var(--fs-muted)]">
@@ -215,11 +346,11 @@ export function CustomerAuthForm({ mode }: Props) {
               className="rounded-3xl border border-white/20 bg-white/95 p-7 shadow-[0_24px_60px_rgba(0,0,0,0.28)] backdrop-blur"
             >
               <h2 className="font-[family-name:var(--font-fraunces)] text-2xl text-[var(--fs-ink)]">
-                Enter OTP
+                Enter code
               </h2>
               <p className="mt-1 text-sm text-[var(--fs-muted)]">
                 Sent to{" "}
-                <span className="font-medium text-stone-700">{formatPhoneDisplay(phone)}</span>
+                <span className="font-medium text-stone-700">{destinationLabel}</span>
               </p>
 
               <label className="mt-6 block space-y-1.5 text-sm">
@@ -241,30 +372,30 @@ export function CustomerAuthForm({ mode }: Props) {
 
               <button
                 type="submit"
-                disabled={verifyMutation.isLoading || code.length < 4}
+                disabled={verifying || code.length < 4}
                 className="mt-6 w-full rounded-xl bg-[var(--fs-leaf-deep)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--fs-leaf)] disabled:opacity-60"
               >
-                {verifyMutation.isLoading ? "Verifying…" : "Verify & continue"}
+                {verifying ? "Verifying…" : "Verify & continue"}
               </button>
 
               <div className="mt-4 flex flex-col gap-2 text-center text-sm">
                 <button
                   type="button"
-                  disabled={resendIn > 0 || sendMutation.isLoading}
+                  disabled={resendIn > 0 || sending}
                   className="text-[var(--fs-leaf)] hover:underline disabled:cursor-not-allowed disabled:text-[var(--fs-muted)] disabled:no-underline"
                   onClick={() => void onResend()}
                 >
-                  {resendIn > 0 ? `Resend OTP in ${resendIn}s` : "Resend OTP"}
+                  {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
                 </button>
                 <button
                   type="button"
                   className="text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
                   onClick={() => {
-                    setStep("phone");
+                    setStep("identifier");
                     setCode("");
                   }}
                 >
-                  Change phone number
+                  {channel === "phone" ? "Change phone number" : "Change email address"}
                 </button>
               </div>
             </form>

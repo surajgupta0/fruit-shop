@@ -7,6 +7,7 @@ import { visibleNav } from "@/src/console/nav";
 import { P } from "@/src/console/permissions";
 import { PageHeader, SectionLabel, StatusPill, Surface } from "@/src/console/ui";
 import { catalogApi } from "@/src/modules/catalog/api";
+import { ordersApi } from "@/src/modules/orders/api";
 
 function StatCard({
   label,
@@ -46,6 +47,7 @@ function StatCard({
 export default function ConsoleOverviewPage() {
   const { user, hasPermission } = useAuth();
   const canCatalog = hasPermission(P.CATALOG_MANAGE);
+  const canOrders = hasPermission(P.ORDERS_MANAGE);
   const panels = visibleNav(hasPermission).filter((item) => item.href !== "/");
 
   const active = useQuery(
@@ -75,6 +77,22 @@ export default function ConsoleOverviewPage() {
   );
   const categories = useQuery(() => catalogApi.listCategories(), [], { enabled: canCatalog });
   const brands = useQuery(() => catalogApi.listBrands(), [], { enabled: canCatalog });
+
+  const openOrders = useQuery(
+    () => ordersApi.list({ page: 1, page_size: 1, status: "confirmed" }),
+    [],
+    { enabled: canOrders },
+  );
+  const pendingOrders = useQuery(
+    () => ordersApi.list({ page: 1, page_size: 1, status: "pending" }),
+    [],
+    { enabled: canOrders },
+  );
+  const allOrders = useQuery(
+    () => ordersApi.list({ page: 1, page_size: 1 }),
+    [],
+    { enabled: canOrders },
+  );
 
   const inventoryPreview = useQuery(
     async () => {
@@ -159,6 +177,31 @@ export default function ConsoleOverviewPage() {
               value={inventoryPreview.data?.length ?? (inventoryPreview.isLoading ? "…" : "—")}
               hint="Needs restock attention"
               href="/inventory"
+            />
+          </div>
+        </section>
+      )}
+
+      {canOrders && (
+        <section>
+          <SectionLabel>Orders snapshot</SectionLabel>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <StatCard
+              label="All orders"
+              value={allOrders.data?.total ?? "—"}
+              href="/orders"
+            />
+            <StatCard
+              label="Pending payment"
+              value={pendingOrders.data?.total ?? "—"}
+              hint="Awaiting online payment"
+              href="/orders?status=pending"
+            />
+            <StatCard
+              label="To fulfil"
+              value={openOrders.data?.total ?? "—"}
+              hint="Confirmed — pack & ship"
+              href="/orders?status=confirmed"
             />
           </div>
         </section>

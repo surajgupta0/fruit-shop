@@ -11,6 +11,13 @@ class Settings(BaseAppSettings):
     JWT_REFRESH_TTL_DAYS: int = 30
     OTP_TTL_MINUTES: int = 5
     OTP_LENGTH: int = 6
+    # SMTP — leave host empty to log OTP to console in dev
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "Fruit Shop <noreply@fruitshop.example>"
+    SMTP_USE_TLS: bool = True
     # Comma-separated browser origins allowed to call the API
     CORS_ORIGINS: str = (
         "http://localhost:3000,http://localhost:3001,"

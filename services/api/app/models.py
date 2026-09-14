@@ -1,5 +1,6 @@
 from app.core.database import Base
 from app.modules.auth.models import OtpCode, RefreshToken, User, UserAddress  # noqa: F401
+from app.modules.cart.models import Cart, CartItem  # noqa: F401
 from app.modules.catalog.models import (  # noqa: F401
     Brand,
     Category,
@@ -13,6 +14,8 @@ from app.modules.catalog.models import (  # noqa: F401
     ProductVariant,
     Tag,
 )
+from app.modules.order.models import Order, OrderItem  # noqa: F401
+from app.modules.payment.models import Payment  # noqa: F401
 from app.modules.users.models import Permission, Role, RolePermission  # noqa: F401
 
 __all__ = [
@@ -35,4 +38,9 @@ __all__ = [
     "ProductImage",
     "ProductVariant",
     "ProductRelation",
+    "Cart",
+    "CartItem",
+    "Order",
+    "OrderItem",
+    "Payment",
 ]

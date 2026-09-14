@@ -82,6 +82,8 @@ export type ProductDetail = {
   is_perishable: boolean;
   unit_label: string | null;
   badge_label: string | null;
+  min_order_qty: number;
+  max_order_qty: number | null;
   shelf_life_days: number | null;
   storage_instructions: string | null;
   origin_country: string | null;

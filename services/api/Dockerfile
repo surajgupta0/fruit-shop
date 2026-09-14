@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir /packages/shared-lib-py \
 COPY services/api/app ./app
 COPY services/api/alembic ./alembic
 COPY services/api/alembic.ini ./alembic.ini
+COPY services/api/certs ./certs
 
 ENV PYTHONPATH=/app
 

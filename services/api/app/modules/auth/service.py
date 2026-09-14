@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.mixins import stamp_create, stamp_update
-from app.modules.auth.models import OtpCode, RefreshToken, User, UserRole
+from app.modules.auth.email_notifications import send_email_otp
+from app.modules.auth.models import OtpChannel, OtpCode, RefreshToken, User, UserRole
 from app.modules.auth.notifications import send_otp_notification
 from app.modules.auth.schemas import TokenPair
 from app.modules.auth.security import (
@@ -31,6 +32,10 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
 
 
 async def _issue_tokens(user: User, settings: Settings, session: AsyncSession) -> TokenPair:
@@ -60,33 +65,52 @@ async def _issue_tokens(user: User, settings: Settings, session: AsyncSession) -
     )
 
 
-async def request_otp(phone: str, settings: Settings, session: AsyncSession) -> None:
+async def _store_otp(
+    *,
+    channel: OtpChannel,
+    phone: str | None,
+    email: str | None,
+    settings: Settings,
+    session: AsyncSession,
+) -> str:
     code = generate_otp(settings.OTP_LENGTH)
     otp = OtpCode(
+        channel=channel,
         phone=phone,
+        email=email,
         code_hash=hash_token(code),
         expires_at=_utcnow() + timedelta(minutes=settings.OTP_TTL_MINUTES),
     )
     stamp_create(otp, None)
     session.add(otp)
     await session.flush()
-    await send_otp_notification(phone=phone, code=code)
-    logger.info("otp_requested phone=%s", phone)
+    return code
 
 
-async def verify_otp(
-    phone: str,
+async def _consume_otp(
+    *,
+    channel: OtpChannel,
+    phone: str | None,
+    email: str | None,
     code: str,
-    settings: Settings,
     session: AsyncSession,
-) -> TokenPair:
+) -> None:
     now = _utcnow()
-    result = await session.execute(
+    query = (
         select(OtpCode)
-        .where(OtpCode.phone == phone, OtpCode.consumed.is_(False))
+        .where(
+            OtpCode.channel == channel,
+            OtpCode.consumed.is_(False),
+        )
         .order_by(OtpCode.expires_at.desc())
         .limit(1)
     )
+    if channel == OtpChannel.phone:
+        query = query.where(OtpCode.phone == phone)
+    else:
+        query = query.where(OtpCode.email == email)
+
+    result = await session.execute(query)
     otp = result.scalar_one_or_none()
     if otp is None or otp.code_hash != hash_token(code) or _as_utc(otp.expires_at) < now:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
@@ -94,15 +118,94 @@ async def verify_otp(
     otp.consumed = True
     stamp_update(otp, None)
 
+
+async def request_otp(phone: str, settings: Settings, session: AsyncSession) -> None:
+    code = await _store_otp(
+        channel=OtpChannel.phone,
+        phone=phone,
+        email=None,
+        settings=settings,
+        session=session,
+    )
+    await send_otp_notification(phone=phone, code=code)
+    logger.info("otp_requested phone=%s", phone)
+
+
+async def request_email_otp(email: str, settings: Settings, session: AsyncSession) -> None:
+    normalized = _normalize_email(email)
+    code = await _store_otp(
+        channel=OtpChannel.email,
+        phone=None,
+        email=normalized,
+        settings=settings,
+        session=session,
+    )
+    await send_email_otp(to=normalized, code=code, settings=settings)
+    logger.info("email_otp_requested email=%s", normalized)
+
+
+async def verify_otp(
+    phone: str,
+    code: str,
+    settings: Settings,
+    session: AsyncSession,
+    *,
+    name: str | None = None,
+) -> TokenPair:
+    await _consume_otp(
+        channel=OtpChannel.phone,
+        phone=phone,
+        email=None,
+        code=code,
+        session=session,
+    )
+
     result = await session.execute(select(User).where(User.phone == phone))
     user = result.scalar_one_or_none()
     if user is None:
-        user = User(phone=phone, name=f"User {phone[-4:]}", role=UserRole.customer)
+        display_name = name.strip() if name and name.strip() else f"User {phone[-4:]}"
+        user = User(phone=phone, name=display_name, role=UserRole.customer)
         session.add(user)
         await session.flush()
-        # Self-signup: store own id as creator on the same row
         stamp_create(user, user.id)
         await session.flush()
+    elif name and name.strip():
+        user.name = name.strip()
+        stamp_update(user, user.id)
+
+    return await _issue_tokens(user, settings, session)
+
+
+async def verify_email_otp(
+    email: str,
+    code: str,
+    settings: Settings,
+    session: AsyncSession,
+    *,
+    name: str | None = None,
+) -> TokenPair:
+    normalized = _normalize_email(email)
+    await _consume_otp(
+        channel=OtpChannel.email,
+        phone=None,
+        email=normalized,
+        code=code,
+        session=session,
+    )
+
+    result = await session.execute(select(User).where(User.email == normalized))
+    user = result.scalar_one_or_none()
+    if user is None:
+        local = normalized.split("@", 1)[0]
+        display_name = name.strip() if name and name.strip() else local.replace(".", " ").title()
+        user = User(email=normalized, name=display_name, role=UserRole.customer)
+        session.add(user)
+        await session.flush()
+        stamp_create(user, user.id)
+        await session.flush()
+    elif name and name.strip():
+        user.name = name.strip()
+        stamp_update(user, user.id)
 
     return await _issue_tokens(user, settings, session)
 
@@ -113,7 +216,7 @@ async def login(
     settings: Settings,
     session: AsyncSession,
 ) -> TokenPair:
-    result = await session.execute(select(User).where(User.email == email))
+    result = await session.execute(select(User).where(User.email == _normalize_email(email)))
     user = result.scalar_one_or_none()
     if (
         user is None

@@ -77,7 +77,7 @@ class UserPasswordUpdate(BaseModel):
 
 class UserResponse(AuditFields):
     id: UUID | str
-    phone: str
+    phone: str | None = None
     email: str | None = None
     name: str
     role: str

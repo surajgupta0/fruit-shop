@@ -32,11 +32,11 @@ export default function HomePage() {
         <img
           src={HERO_IMAGE}
           alt=""
-          className="fs-fade-in absolute inset-0 h-full w-full scale-105 object-cover"
+          className="fs-fade-in pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover"
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-[linear-gradient(115deg,rgba(12,46,28,0.94)_0%,rgba(20,83,45,0.55)_48%,rgba(12,46,28,0.25)_100%)]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(12,46,28,0.94)_0%,rgba(20,83,45,0.55)_48%,rgba(12,46,28,0.25)_100%)]"
         />
         <div
           aria-hidden

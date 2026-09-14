@@ -8,6 +8,7 @@ from fruitshop_shared.logging import configure_logging
 
 from app.core.config import get_settings
 from app.modules.auth.router import router as auth_router
+from app.modules.cart.router import router as cart_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.cms.router import router as cms_router
 from app.modules.coupon.router import router as coupon_router
@@ -25,6 +26,7 @@ ROUTERS = [
     users_router,
     roles_router,
     catalog_router,
+    cart_router,
     inventory_router,
     order_router,
     payment_router,

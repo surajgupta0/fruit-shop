@@ -130,6 +130,52 @@ async def test_admin_create_staff_requires_permission(client, admin_token):
 
 
 @pytest.mark.asyncio
+async def test_email_otp_request_returns_202(client):
+    response = await client.post(
+        "/auth/otp/email/request",
+        json={"email": "shopper@fruitshop.example"},
+    )
+    assert response.status_code == 202
+    assert response.content == b""
+
+
+@pytest.mark.asyncio
+async def test_email_otp_verify_issues_tokens_and_creates_user(client):
+    email = "newshopper@fruitshop.example"
+    await client.post("/auth/otp/email/request", json={"email": email})
+
+    response = await client.post(
+        "/auth/otp/email/verify",
+        json={"email": email, "code": "123456", "name": "Email Shopper"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+
+    me = await client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {body['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert me.json()["email"] == email
+    assert me.json()["name"] == "Email Shopper"
+    assert me.json()["phone"] is None
+
+
+@pytest.mark.asyncio
+async def test_email_otp_verify_rejects_bad_code(client):
+    email = "badcode@fruitshop.example"
+    await client.post("/auth/otp/email/request", json={"email": email})
+
+    response = await client.post(
+        "/auth/otp/email/verify",
+        json={"email": email, "code": "000000"},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_customer_address_crud(client):
     phone = "+919999000007"
     await client.post("/auth/otp/request", json={"phone": phone})

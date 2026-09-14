@@ -17,16 +17,22 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        from app.core.config import get_settings
+    from app.core.config import get_settings
 
-        url = get_settings().DATABASE_URL
+    # Prefer settings so DB_HOST / DB_USER / etc. work; DATABASE_URL still overrides
+    url = get_settings().database_url or os.environ.get("DATABASE_URL")
     if not url:
-        raise RuntimeError("DATABASE_URL is required to run migrations")
+        raise RuntimeError("DATABASE_URL or DB_* parameters are required to run migrations")
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
+
+
+def get_connect_args() -> dict:
+    from app.core.config import get_settings
+    from fruitshop_shared.db import build_ssl_connect_args
+
+    return build_ssl_connect_args(get_settings())
 
 
 def run_migrations_offline() -> None:
@@ -53,6 +59,7 @@ async def run_async_migrations() -> None:
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=get_connect_args(),
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

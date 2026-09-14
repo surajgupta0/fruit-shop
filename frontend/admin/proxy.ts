@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shouldAllowRequest } from "@fruitshop/web-core";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const result = shouldAllowRequest(pathname, request.headers.get("cookie"), {
     publicPaths: ["/login", "/signup", "/_next", "/favicon.ico"],

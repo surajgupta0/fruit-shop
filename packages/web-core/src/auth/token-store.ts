@@ -13,7 +13,7 @@ function setCookie(name: string, value: string, maxAgeSeconds: number) {
 
 function clearCookie(name: string) {
   if (!canUseDom()) return;
-  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
 }
 
 export const tokenStore = {

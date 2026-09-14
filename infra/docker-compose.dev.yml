@@ -4,38 +4,12 @@ networks:
   fruit-shop:
     name: fruit-shop
 
-volumes:
-  fruitshop_postgres_data:
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: fruit-shop-postgres
-    environment:
-      POSTGRES_USER: fruitshop
-      POSTGRES_PASSWORD: fruitshop
-      POSTGRES_DB: fruitshop
-    volumes:
-      - fruitshop_postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - fruit-shop
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fruitshop -d fruitshop"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
       context: ..
       dockerfile: services/api/Dockerfile
     container_name: fruit-shop-api
-    depends_on:
-      postgres:
-        condition: service_healthy
     ports:
       - "8000:8000"
     env_file:
@@ -43,7 +17,14 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://fruitshop:fruitshop@postgres:5432/fruitshop}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE:-verify-ca}
+      DB_SSL_CA: ${DB_SSL_CA:-/app/certs/aiven-ca.pem}
+      DATABASE_URL: ${DATABASE_URL:-}
     networks:
       - fruit-shop
     restart: unless-stopped

@@ -153,6 +153,9 @@ export type CreateProductInput = {
   track_inventory?: boolean;
   unit_label?: string;
   badge_label?: string;
+  shelf_life_days?: number;
+  storage_instructions?: string;
+  origin_region?: string;
   tag_ids?: string[];
   variants?: Array<{
     sku: string;

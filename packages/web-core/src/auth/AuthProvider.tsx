@@ -20,7 +20,9 @@ type AuthState = {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   requestOtp: (phone: string) => Promise<void>;
-  verifyOtp: (phone: string, code: string) => Promise<AuthUser>;
+  verifyOtp: (phone: string, code: string, name?: string) => Promise<AuthUser>;
+  requestEmailOtp: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, code: string, name?: string) => Promise<AuthUser>;
   logout: () => void;
   refreshMe: () => Promise<AuthUser | null>;
   hasPermission: (permission: string) => boolean;
@@ -36,6 +38,8 @@ type AuthProviderProps = {
   loginApiPath?: string;
   otpRequestPath?: string;
   otpVerifyPath?: string;
+  emailOtpRequestPath?: string;
+  emailOtpVerifyPath?: string;
 };
 
 export function AuthProvider({
@@ -45,6 +49,8 @@ export function AuthProvider({
   loginApiPath = "/auth/login",
   otpRequestPath = "/auth/otp/request",
   otpVerifyPath = "/auth/otp/verify",
+  emailOtpRequestPath = "/auth/otp/email/request",
+  emailOtpVerifyPath = "/auth/otp/email/verify",
 }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [bootstrapping, setBootstrapping] = useState(true);
@@ -110,15 +116,42 @@ export function AuthProvider({
   );
 
   const verifyOtp = useCallback(
-    async (phone: string, code: string) => {
+    async (phone: string, code: string, name?: string) => {
       const tokens = await api.post<TokenPair>(
         otpVerifyPath,
-        { phone, code },
+        { phone, code, ...(name?.trim() ? { name: name.trim() } : {}) },
         { auth: false, successToast: "Welcome" },
       );
       return applyTokens(tokens);
     },
     [otpVerifyPath, applyTokens],
+  );
+
+  const requestEmailOtp = useCallback(
+    async (email: string) => {
+      await api.post<void>(
+        emailOtpRequestPath,
+        { email: email.trim().toLowerCase() },
+        { auth: false, successToast: "Code sent to your email" },
+      );
+    },
+    [emailOtpRequestPath],
+  );
+
+  const verifyEmailOtp = useCallback(
+    async (email: string, code: string, name?: string) => {
+      const tokens = await api.post<TokenPair>(
+        emailOtpVerifyPath,
+        {
+          email: email.trim().toLowerCase(),
+          code,
+          ...(name?.trim() ? { name: name.trim() } : {}),
+        },
+        { auth: false, successToast: "Welcome" },
+      );
+      return applyTokens(tokens);
+    },
+    [emailOtpVerifyPath, applyTokens],
   );
 
   const logout = useCallback(() => {
@@ -137,13 +170,15 @@ export function AuthProvider({
       login,
       requestOtp,
       verifyOtp,
+      requestEmailOtp,
+      verifyEmailOtp,
       logout,
       refreshMe,
       hasPermission: (permission) =>
         Boolean(user?.permissions?.some((p) => p === permission)),
       hasRole: (...roles) => Boolean(user && roles.includes(user.role)),
     }),
-    [user, bootstrapping, login, requestOtp, verifyOtp, logout, refreshMe],
+    [user, bootstrapping, login, requestOtp, verifyOtp, requestEmailOtp, verifyEmailOtp, logout, refreshMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,7 +4,20 @@
  */
 export function hasAccessCookie(cookieHeader: string | null, cookieName = "fs_access_token") {
   if (!cookieHeader) return false;
-  return cookieHeader.split(";").some((part) => part.trim().startsWith(`${cookieName}=`));
+
+  for (const part of cookieHeader.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(`${cookieName}=`)) continue;
+    const raw = trimmed.slice(cookieName.length + 1);
+    if (!raw) continue;
+    try {
+      if (decodeURIComponent(raw).length > 0) return true;
+    } catch {
+      if (raw.length > 0) return true;
+    }
+  }
+
+  return false;
 }
 
 export type GuardOptions = {

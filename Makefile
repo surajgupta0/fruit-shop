@@ -7,4 +7,4 @@ down:
 	docker compose -f infra/docker-compose.dev.yml --env-file .env.dev down
 
 reset:
-	docker compose -f infra/docker-compose.dev.yml --env-file .env.dev down -v
+	docker compose -f infra/docker-compose.dev.yml --env-file .env.dev down

@@ -9,7 +9,7 @@ export type TokenPair = {
 
 export type AuthUser = {
   id: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   name: string;
   role: string;

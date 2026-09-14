@@ -2,7 +2,7 @@
 
 import { configureApiClient, AppProviders as CoreProviders, tokenStore } from "@fruitshop/web-core";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").trim() || "http://localhost:8000";
 const LOGIN_PATH = "/login";
 
 configureApiClient({

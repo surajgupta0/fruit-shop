@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@fruitshop/web-core";
+import { useAuth, useQuery } from "@fruitshop/web-core";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { cartApi } from "@/src/modules/orders/api";
 
 function FruitMark({ light = false }: { light?: boolean }) {
   return (
@@ -35,6 +37,39 @@ type HeaderProps = {
   variant?: "hero" | "solid";
 };
 
+function CartLink({ hero }: { hero: boolean }) {
+  const { isAuthenticated } = useAuth();
+  const cart = useQuery(() => cartApi.get(), [], {
+    enabled: isAuthenticated,
+  });
+  const count = cart.data?.item_count ?? 0;
+
+  return (
+    <Link
+      href={isAuthenticated ? "/cart" : "/login?next=/cart"}
+      className={`relative inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm transition ${
+        hero
+          ? "text-white/85 hover:bg-white/10 hover:text-white"
+          : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)] hover:text-[var(--fs-ink)]"
+      }`}
+      aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
+    >
+      <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path d="M6 6h15l-1.5 9h-12L6 6z" strokeLinejoin="round" />
+        <path d="M6 6 5 3H2" strokeLinecap="round" />
+        <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
+        <circle cx="18" cy="20" r="1.25" fill="currentColor" stroke="none" />
+      </svg>
+      <span className="hidden sm:inline">Cart</span>
+      {count > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 grid min-w-[1.125rem] place-items-center rounded-full bg-[var(--fs-mango)] px-1 text-[10px] font-bold text-[var(--fs-orchard)]">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function SiteHeader({ variant = "solid" }: HeaderProps) {
   const pathname = usePathname();
   const { user, logout, bootstrapping, isAuthenticated } = useAuth();
@@ -53,7 +88,7 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
     <header
       className={
         hero
-          ? "absolute inset-x-0 top-0 z-30"
+          ? "absolute inset-x-0 top-0 z-50"
           : "sticky top-0 z-40 border-b border-[var(--fs-line)]/80 bg-white/90 backdrop-blur-md"
       }
     >
@@ -81,6 +116,7 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
         </nav>
 
         <div className="flex items-center gap-2 text-sm">
+          <CartLink hero={hero} />
           {bootstrapping ? (
             <span className={hero ? "text-white/50" : "text-[var(--fs-muted)]"}>…</span>
           ) : isAuthenticated && user ? (
@@ -171,9 +207,28 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
                 {item.label}
               </Link>
             ))}
-            <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
-              Account
+            <Link
+              href={isAuthenticated ? "/cart" : "/login?next=/cart"}
+              className="rounded-lg px-3 py-2.5 text-sm"
+              onClick={() => setOpen(false)}
+            >
+              Cart
             </Link>
+            {!bootstrapping && !isAuthenticated && (
+              <>
+                <Link href="/login" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
+                  Sign in
+                </Link>
+                <Link href="/signup" className="rounded-lg px-3 py-2.5 text-sm font-semibold" onClick={() => setOpen(false)}>
+                  Sign up
+                </Link>
+              </>
+            )}
+            {isAuthenticated && (
+              <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
+                Account
+              </Link>
+            )}
           </nav>
         </div>
       )}
@@ -233,6 +288,16 @@ export function StoreFooter() {
             <li>
               <Link href="/signup" className="hover:text-white">
                 Create account
+              </Link>
+            </li>
+            <li>
+              <Link href="/account/orders" className="hover:text-white">
+                Order history
+              </Link>
+            </li>
+            <li>
+              <Link href="/cart" className="hover:text-white">
+                Cart
               </Link>
             </li>
             <li>

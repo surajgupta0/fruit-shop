@@ -50,6 +50,12 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Labels for filtering",
   },
   {
+    href: "/orders",
+    label: "Orders",
+    permission: P.ORDERS_MANAGE,
+    description: "Customer orders and fulfilment",
+  },
+  {
     href: "/users",
     label: "Users",
     permission: P.USERS_LIST,

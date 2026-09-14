@@ -24,7 +24,7 @@ class User(AuditMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    phone: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(255))
@@ -70,13 +70,24 @@ class UserAddress(AuditMixin, Base):
     )
 
 
+class OtpChannel(str, enum.Enum):
+    phone = "phone"
+    email = "email"
+
+
 class OtpCode(AuditMixin, Base):
     __tablename__ = "otp_codes"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    phone: Mapped[str] = mapped_column(String(32), index=True)
+    channel: Mapped[OtpChannel] = mapped_column(
+        Enum(OtpChannel, name="otp_channel", native_enum=False),
+        default=OtpChannel.phone,
+        index=True,
+    )
+    phone: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
     code_hash: Mapped[str] = mapped_column(String(128))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     consumed: Mapped[bool] = mapped_column(Boolean, default=False)

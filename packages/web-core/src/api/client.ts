@@ -30,8 +30,9 @@ export function configureApiClient(next: ApiClientConfig) {
 }
 
 function buildUrl(path: string, params?: RequestOptions["params"]) {
+  const base = config.baseUrl?.replace(/\/$/, "") || "http://localhost:8000";
   const url = new URL(
-    path.startsWith("http") ? path : `${config.baseUrl}${path.startsWith("/") ? path : `/${path}`}`,
+    path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`,
   );
   if (params) {
     for (const [key, value] of Object.entries(params)) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { configureApiClient } from "../api/client";
 import { AuthProvider } from "../auth/AuthProvider";
@@ -21,6 +21,11 @@ export type AppProvidersProps = {
   onUnauthorized?: () => void;
 };
 
+function normalizeApiBaseUrl(url: string) {
+  const trimmed = url.trim();
+  return trimmed || "http://localhost:8000";
+}
+
 /**
  * Single entry provider for every Fruit Shop frontend app.
  * Wraps: API config + auth session + toasts.
@@ -33,19 +38,41 @@ export function AppProviders({
   loginApiPath = "/auth/login",
   onUnauthorized,
 }: AppProvidersProps) {
+  const onUnauthorizedRef = useRef(onUnauthorized);
+  onUnauthorizedRef.current = onUnauthorized;
+
+  // Configure synchronously so child useQuery effects never run with an empty base URL.
+  configureApiClient({
+    baseUrl: normalizeApiBaseUrl(apiBaseUrl),
+    onUnauthorized: () => {
+      const handler = onUnauthorizedRef.current;
+      if (handler) {
+        handler();
+        return;
+      }
+      tokenStore.clear();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith(loginPath)) {
+        window.location.assign(loginPath);
+      }
+    },
+  });
+
   useEffect(() => {
     configureApiClient({
-      baseUrl: apiBaseUrl,
-      onUnauthorized:
-        onUnauthorized ??
-        (() => {
-          tokenStore.clear();
-          if (typeof window !== "undefined" && !window.location.pathname.startsWith(loginPath)) {
-            window.location.assign(loginPath);
-          }
-        }),
+      baseUrl: normalizeApiBaseUrl(apiBaseUrl),
+      onUnauthorized: () => {
+        const handler = onUnauthorizedRef.current;
+        if (handler) {
+          handler();
+          return;
+        }
+        tokenStore.clear();
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith(loginPath)) {
+          window.location.assign(loginPath);
+        }
+      },
     });
-  }, [apiBaseUrl, loginPath, onUnauthorized]);
+  }, [apiBaseUrl, loginPath]);
 
   return (
     <AuthProvider loginPath={loginPath} mePath={mePath} loginApiPath={loginApiPath}>

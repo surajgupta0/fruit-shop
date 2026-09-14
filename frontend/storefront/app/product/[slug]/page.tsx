@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useQuery } from "@fruitshop/web-core";
+import { useAuth, useMutation, useQuery } from "@fruitshop/web-core";
 
 import { ProductGrid } from "@/src/components/ProductCard";
 import { StoreShell } from "@/src/components/StoreChrome";
 import { catalogApi, formatMoney } from "@/src/modules/catalog/api";
+import { cartApi } from "@/src/modules/orders/api";
 
 export default function ProductPage() {
   const params = useParams<{ slug: string }>();
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const slug = params.slug;
 
   const detail = useQuery(() => catalogApi.getBySlug(slug), [slug]);
@@ -31,8 +34,13 @@ export default function ProductPage() {
   const defaultVariant =
     variants.find((v) => v.is_default) ?? variants[0] ?? null;
   const [variantId, setVariantId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const selected =
     variants.find((v) => v.id === (variantId ?? defaultVariant?.id)) ?? defaultVariant;
+
+  const addToCart = useMutation(() =>
+    cartApi.addItem(selected!.id, quantity),
+  );
 
   const images = detail.data?.images?.length
     ? [...detail.data.images].sort((a, b) => a.sort_order - b.sort_order)
@@ -175,6 +183,33 @@ export default function ProductPage() {
               </div>
             )}
 
+            {selected && selected.stock_qty > 0 && (
+              <div className="mt-5">
+                <p className="text-sm font-medium text-stone-700">Quantity</p>
+                <div className="mt-2 inline-flex items-center rounded-xl border border-[var(--fs-line)]">
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-lg text-[var(--fs-muted)]"
+                    onClick={() => setQuantity((q) => Math.max(p.min_order_qty || 1, q - 1))}
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[2.5rem] text-center text-sm font-medium">{quantity}</span>
+                  <button
+                    type="button"
+                    className="px-3 py-2 text-lg text-[var(--fs-muted)]"
+                    onClick={() =>
+                      setQuantity((q) =>
+                        p.max_order_qty ? Math.min(p.max_order_qty, q + 1) : q + 1,
+                      )
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+
             <p className="mt-4 text-sm text-[var(--fs-muted)]">
               {selected && selected.stock_qty > 0
                 ? "In stock — ready to order"
@@ -182,12 +217,47 @@ export default function ProductPage() {
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/signup"
-                className="rounded-full bg-[var(--fs-leaf-deep)] px-6 py-3 text-sm font-semibold text-white hover:bg-[var(--fs-leaf)]"
-              >
-                Sign up to order
-              </Link>
+              {selected && selected.stock_qty > 0 ? (
+                isAuthenticated ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={addToCart.isLoading}
+                      className="rounded-full bg-[var(--fs-leaf-deep)] px-6 py-3 text-sm font-semibold text-white hover:bg-[var(--fs-leaf)] disabled:opacity-60"
+                      onClick={async () => {
+                        try {
+                          await addToCart.mutate();
+                          router.push("/cart");
+                        } catch {
+                          /* toast */
+                        }
+                      }}
+                    >
+                      {addToCart.isLoading ? "Adding…" : "Add to cart"}
+                    </button>
+                    <Link
+                      href="/cart"
+                      className="rounded-full border border-[var(--fs-line)] bg-white px-6 py-3 text-sm font-medium text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
+                    >
+                      View cart
+                    </Link>
+                  </>
+                ) : (
+                  <Link
+                    href={`/login?next=/product/${slug}`}
+                    className="rounded-full bg-[var(--fs-leaf-deep)] px-6 py-3 text-sm font-semibold text-white hover:bg-[var(--fs-leaf)]"
+                  >
+                    Sign in to order
+                  </Link>
+                )
+              ) : (
+                <Link
+                  href="/shop"
+                  className="rounded-full border border-[var(--fs-line)] bg-white px-6 py-3 text-sm font-medium text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
+                >
+                  Browse other fruit
+                </Link>
+              )}
               <Link
                 href="/shop"
                 className="rounded-full border border-[var(--fs-line)] bg-white px-6 py-3 text-sm font-medium text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
