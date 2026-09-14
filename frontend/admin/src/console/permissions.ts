@@ -15,6 +15,8 @@ export const P = {
   INVENTORY_MANAGE: "inventory:manage",
   ORDERS_MANAGE: "orders:manage",
   ORDERS_READ: "orders:read",
+  COUPONS_MANAGE: "coupons:manage",
+  NOTIFICATIONS_READ: "notifications:read",
 } as const;
 
 export type PermissionCode = (typeof P)[keyof typeof P];

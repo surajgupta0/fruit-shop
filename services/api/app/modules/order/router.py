@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from fruitshop_shared.auth_deps import User as AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
 from app.core.deps import get_current_user, get_session, require_permissions
 from app.core.schemas import ModuleHealthResponse
 from app.modules.order import service as order_service
@@ -31,8 +32,11 @@ async def checkout(
     body: CheckoutRequest,
     user: Annotated[AuthUser, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> OrderResponse:
-    return await order_service.checkout(user.sub, body, session, actor_id=user.sub)
+    return await order_service.checkout(
+        user.sub, body, session, actor_id=user.sub, settings=settings
+    )
 
 
 @router.get("", response_model=OrderListResponse)
@@ -81,12 +85,14 @@ async def update_order_admin(
     body: AdminOrderUpdate,
     user: Annotated[AuthUser, Depends(require_permissions(ORDERS_MANAGE))],
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> OrderResponse:
     return await order_service.update_order_admin(
         str(order_id),
         body,
         session,
         actor_id=user.sub,
+        settings=settings,
     )
 
 
@@ -108,6 +114,7 @@ async def cancel_my_order(
     body: CancelOrderRequest,
     user: Annotated[AuthUser, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> OrderResponse:
     return await order_service.cancel_my_order(
         user.sub,
@@ -115,4 +122,5 @@ async def cancel_my_order(
         session,
         reason=body.reason,
         actor_id=user.sub,
+        settings=settings,
     )

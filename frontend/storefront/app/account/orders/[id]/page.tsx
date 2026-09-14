@@ -142,6 +142,15 @@ function OrderDetailContent() {
                   {Number(o.shipping_amount) === 0 ? "Free" : formatMoney(o.shipping_amount)}
                 </dd>
               </div>
+              {Number(o.discount_amount) > 0 && (
+                <div className="flex justify-between text-[var(--fs-leaf-deep)]">
+                  <dt>
+                    Discount
+                    {o.coupon_code ? ` (${o.coupon_code})` : ""}
+                  </dt>
+                  <dd>−{formatMoney(o.discount_amount)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-[var(--fs-line)] pt-2 font-semibold">
                 <dt>Total</dt>
                 <dd>{formatMoney(o.total)}</dd>

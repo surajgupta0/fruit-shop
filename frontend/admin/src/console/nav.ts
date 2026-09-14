@@ -56,6 +56,18 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Customer orders and fulfilment",
   },
   {
+    href: "/coupons",
+    label: "Coupons",
+    permission: P.COUPONS_MANAGE,
+    description: "Discount codes and promotions",
+  },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    permission: P.NOTIFICATIONS_READ,
+    description: "Order email and SMS delivery log",
+  },
+  {
     href: "/users",
     label: "Users",
     permission: P.USERS_LIST,

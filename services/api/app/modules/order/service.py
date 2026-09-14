@@ -8,12 +8,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import Settings, get_settings
 from app.core.mixins import stamp_create, stamp_update
 from app.modules.auth.models import User, UserAddress
 from app.modules.cart.models import Cart
 from app.modules.cart import service as cart_service
 from app.modules.catalog.models import Product, ProductVariant
-from app.modules.order.helpers import get_order_or_404, parse_uuid, restore_stock
+from app.modules.coupon import service as coupon_service
+from app.modules.notification import service as notification_service
+from app.modules.order.helpers import get_order_or_404, load_variant_bundle, parse_uuid, restore_stock
 from app.modules.order.models import (
     Order,
     OrderItem,
@@ -24,7 +27,6 @@ from app.modules.order.models import (
 from app.modules.order.pricing import (
     CURRENCY,
     assert_purchasable,
-    cart_totals,
     price_line,
 )
 from app.modules.order.schemas import (
@@ -79,16 +81,7 @@ async def _get_order_or_404(order_id: str | uuid.UUID, session: AsyncSession) ->
 async def _load_variant_bundle(
     variant_id: uuid.UUID, session: AsyncSession
 ) -> tuple[ProductVariant, Product]:
-    variant = (
-        await session.execute(
-            select(ProductVariant)
-            .where(ProductVariant.id == variant_id)
-            .options(selectinload(ProductVariant.product).selectinload(Product.images))
-        )
-    ).scalar_one_or_none()
-    if variant is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Variant not found")
-    return variant, variant.product
+    return await load_variant_bundle(variant_id, session)
 
 
 async def checkout(
@@ -97,9 +90,11 @@ async def checkout(
     session: AsyncSession,
     *,
     actor_id: str | uuid.UUID | None = None,
+    settings: Settings | None = None,
 ) -> OrderResponse:
     uid = _parse_uuid(user_id, label="user id")
     aid = _parse_uuid(actor_id) if actor_id else uid
+    settings = settings or get_settings()
 
     user = (await session.execute(select(User).where(User.id == uid))).scalar_one_or_none()
     if user is None:
@@ -127,7 +122,12 @@ async def checkout(
         priced = price_line(product, variant, item.quantity)
         priced_lines.append((item, variant, product, priced))
 
-    subtotal, tax_amount, shipping, total = cart_totals([p[3] for p in priced_lines])
+    subtotal, tax_amount, shipping, discount, total, coupon = await coupon_service.apply_coupon_to_totals(
+        code=body.coupon_code,
+        user_id=uid,
+        lines=[p[3] for p in priced_lines],
+        session=session,
+    )
 
     order_status = OrderStatus.confirmed if body.payment_method == PaymentMethod.cod else OrderStatus.pending
     payment_status = PaymentStatus.pending
@@ -142,8 +142,10 @@ async def checkout(
         subtotal=subtotal,
         tax_amount=tax_amount,
         shipping_amount=shipping,
-        discount_amount=0,
+        discount_amount=discount,
         total=total,
+        coupon_id=coupon.id if coupon else None,
+        coupon_code=coupon.code if coupon else None,
         shipping_label=address.label,
         shipping_line1=address.line1,
         shipping_line2=address.line2,
@@ -184,6 +186,16 @@ async def checkout(
             variant.stock_qty = max(0, variant.stock_qty - cart_item.quantity)
             stamp_update(variant, aid)
 
+    if coupon is not None:
+        await coupon_service.redeem_coupon(
+            coupon=coupon,
+            user_id=uid,
+            order_id=order.id,
+            discount_amount=discount,
+            session=session,
+            actor_id=aid,
+        )
+
     payment = Payment(
         order_id=order.id,
         amount=total,
@@ -199,7 +211,14 @@ async def checkout(
         await session.delete(item)
     cart.items = []
 
-    return await _order_response_after_write(order, session)
+    response = await _order_response_after_write(order, session)
+    await notification_service.notify_order_status_change(
+        await get_order_or_404(order.id, session),
+        previous_status=None,
+        settings=settings,
+        session=session,
+    )
+    return response
 
 
 async def list_my_orders(
@@ -252,6 +271,7 @@ async def cancel_my_order(
     *,
     reason: str | None = None,
     actor_id: str | uuid.UUID | None = None,
+    settings: Settings | None = None,
 ) -> OrderResponse:
     order = await _get_order_or_404(order_id, session)
     uid = _parse_uuid(user_id, label="user id")
@@ -265,6 +285,8 @@ async def cancel_my_order(
         )
 
     aid = _parse_uuid(actor_id) if actor_id else uid
+    settings = settings or get_settings()
+    previous = order.status
     await restore_stock(order, session, actor_id=aid)
 
     order.status = OrderStatus.cancelled
@@ -284,7 +306,26 @@ async def cancel_my_order(
         payment.status = PaymentStatus.refunded
         stamp_update(payment, aid)
 
-    return await _order_response_after_write(order, session)
+    # Release coupon if cancelled before fulfillment
+    if previous in (OrderStatus.pending, OrderStatus.confirmed, OrderStatus.processing):
+        await coupon_service.release_coupon_for_order(order.id, session, actor_id=aid)
+
+    response = await _order_response_after_write(order, session)
+    fresh = await get_order_or_404(order.id, session)
+    await notification_service.notify_order_status_change(
+        fresh,
+        previous_status=previous,
+        settings=settings,
+        session=session,
+    )
+    if fresh.payment_status == PaymentStatus.refunded:
+        await notification_service.notify_payment_status_change(
+            fresh,
+            payment_status=PaymentStatus.refunded,
+            settings=settings,
+            session=session,
+        )
+    return response
 
 
 async def _restore_stock(
@@ -336,14 +377,26 @@ async def update_order_admin(
     session: AsyncSession,
     *,
     actor_id: str | uuid.UUID | None = None,
+    settings: Settings | None = None,
 ) -> OrderResponse:
     order = await _get_order_or_404(order_id, session)
     aid = _parse_uuid(actor_id) if actor_id else None
+    settings = settings or get_settings()
+    previous_status = order.status
+    previous_payment = order.payment_status
 
     if body.status is not None:
         if body.status == OrderStatus.cancelled and order.status != OrderStatus.cancelled:
             await restore_stock(order, session, actor_id=aid)
             order.cancelled_at = _utcnow()
+            if previous_status in (
+                OrderStatus.pending,
+                OrderStatus.confirmed,
+                OrderStatus.processing,
+            ):
+                await coupon_service.release_coupon_for_order(
+                    order.id, session, actor_id=aid
+                )
         order.status = body.status
 
     if body.payment_status is not None:
@@ -358,4 +411,19 @@ async def update_order_admin(
             stamp_update(payment, aid)
 
     stamp_update(order, aid)
-    return await _order_response_after_write(order, session)
+    response = await _order_response_after_write(order, session)
+    fresh = await get_order_or_404(order.id, session)
+    await notification_service.notify_order_status_change(
+        fresh,
+        previous_status=previous_status,
+        settings=settings,
+        session=session,
+    )
+    if body.payment_status is not None and body.payment_status != previous_payment:
+        await notification_service.notify_payment_status_change(
+            fresh,
+            payment_status=body.payment_status,
+            settings=settings,
+            session=session,
+        )
+    return response

@@ -7,7 +7,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
 from app.core.mixins import stamp_update
+from app.modules.notification import service as notification_service
 from app.modules.order.helpers import get_order_or_404, restore_stock
 from app.modules.order.models import Order, OrderStatus, PaymentMethod, PaymentStatus
 from app.modules.payment.models import Payment
@@ -60,10 +62,12 @@ async def confirm_payment(
     session: AsyncSession,
     *,
     actor_id: str | uuid.UUID | None = None,
+    settings: Settings | None = None,
 ) -> PaymentResponse:
     oid = _parse_uuid(order_id, label="order id")
     uid = _parse_uuid(user_id, label="user id")
     aid = _parse_uuid(actor_id) if actor_id else uid
+    settings = settings or get_settings()
 
     order = (
         await session.execute(select(Order).where(Order.id == oid))
@@ -88,6 +92,7 @@ async def confirm_payment(
     if payment.status == PaymentStatus.paid:
         return _to_payment_response(payment)
 
+    previous_status = order.status
     payment.status = PaymentStatus.paid
     payment.paid_at = _utcnow()
     payment.provider = payment.provider or "stub"
@@ -100,6 +105,19 @@ async def confirm_payment(
     stamp_update(order, aid)
 
     await session.flush()
+    fresh = await get_order_or_404(order.id, session)
+    await notification_service.notify_order_status_change(
+        fresh,
+        previous_status=previous_status,
+        settings=settings,
+        session=session,
+    )
+    await notification_service.notify_payment_status_change(
+        fresh,
+        payment_status=PaymentStatus.paid,
+        settings=settings,
+        session=session,
+    )
     return _to_payment_response(payment)
 
 
@@ -109,9 +127,11 @@ async def refund_payment_admin(
     *,
     reason: str | None = None,
     actor_id: str | uuid.UUID | None = None,
+    settings: Settings | None = None,
 ) -> PaymentResponse:
     oid = _parse_uuid(order_id, label="order id")
     aid = _parse_uuid(actor_id) if actor_id else None
+    settings = settings or get_settings()
 
     order = await get_order_or_404(order_id, session)
     payment = (
@@ -122,6 +142,7 @@ async def refund_payment_admin(
     if payment.status != PaymentStatus.paid:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Payment is not paid")
 
+    previous_status = order.status
     payment.status = PaymentStatus.refunded
     payment.failure_reason = reason
     stamp_update(payment, aid)
@@ -135,4 +156,17 @@ async def refund_payment_admin(
     stamp_update(order, aid)
 
     await session.flush()
+    fresh = await get_order_or_404(order.id, session)
+    await notification_service.notify_order_status_change(
+        fresh,
+        previous_status=previous_status,
+        settings=settings,
+        session=session,
+    )
+    await notification_service.notify_payment_status_change(
+        fresh,
+        payment_status=PaymentStatus.refunded,
+        settings=settings,
+        session=session,
+    )
     return _to_payment_response(payment)

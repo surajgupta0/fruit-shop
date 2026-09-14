@@ -66,6 +66,8 @@ export type Order = {
   shipping_amount: string | number;
   discount_amount: string | number;
   total: string | number;
+  coupon_id?: string | null;
+  coupon_code?: string | null;
   shipping_label: string;
   shipping_line1: string;
   shipping_line2: string | null;
@@ -147,7 +149,12 @@ export const cartApi = {
 };
 
 export const ordersApi = {
-  checkout(body: { address_id: string; payment_method: PaymentMethod; notes?: string }) {
+  checkout(body: {
+    address_id: string;
+    payment_method: PaymentMethod;
+    coupon_code?: string;
+    notes?: string;
+  }) {
     return api.post<Order>("/orders/checkout", body, {
       auth: true,
       successToast: "Order placed!",

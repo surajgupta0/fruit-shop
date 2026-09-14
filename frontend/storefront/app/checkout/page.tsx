@@ -13,6 +13,7 @@ import {
   ordersApi,
   type PaymentMethod,
 } from "@/src/modules/orders/api";
+import { couponsApi, type CouponValidateResponse } from "@/src/modules/coupons/api";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function CheckoutPage() {
   const [addressId, setAddressId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
   const [notes, setNotes] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [newAddress, setNewAddress] = useState({
     label: "home",
@@ -54,10 +58,24 @@ export default function CheckoutPage() {
     }),
   );
 
+  const applyCoupon = useMutation(async (code: string) => {
+    const result = await couponsApi.validate(code);
+    if (!result.valid) {
+      setAppliedCoupon(null);
+      setCouponError(result.message || "Coupon is not valid");
+      return result;
+    }
+    setAppliedCoupon(result);
+    setCouponError(null);
+    setCouponInput(result.code);
+    return result;
+  });
+
   const checkout = useMutation(() =>
     ordersApi.checkout({
       address_id: addressId,
       payment_method: paymentMethod,
+      coupon_code: appliedCoupon?.valid ? appliedCoupon.code : undefined,
       notes: notes.trim() || undefined,
     }),
   );
@@ -238,6 +256,59 @@ export default function CheckoutPage() {
               </section>
 
               <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
+                <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Coupon</h2>
+                <p className="mt-1 text-xs text-[var(--fs-muted)]">
+                  Optional discount code for this order
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <input
+                    className="min-w-[160px] flex-1 rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm uppercase outline-none focus:border-[var(--fs-leaf)]"
+                    placeholder="FRESH10"
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value.toUpperCase());
+                      setCouponError(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={applyCoupon.isLoading || !couponInput.trim()}
+                    className="rounded-full bg-[var(--fs-mist)] px-4 py-2 text-sm font-medium text-[var(--fs-leaf-deep)] hover:bg-[var(--fs-leaf)]/15 disabled:opacity-50"
+                    onClick={async () => {
+                      try {
+                        await applyCoupon.mutate(couponInput.trim());
+                      } catch {
+                        setAppliedCoupon(null);
+                        setCouponError("Could not apply coupon");
+                      }
+                    }}
+                  >
+                    {applyCoupon.isLoading ? "Checking…" : "Apply"}
+                  </button>
+                  {appliedCoupon?.valid && (
+                    <button
+                      type="button"
+                      className="rounded-full px-3 py-2 text-sm text-[var(--fs-muted)] hover:text-rose-600"
+                      onClick={() => {
+                        setAppliedCoupon(null);
+                        setCouponInput("");
+                        setCouponError(null);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {appliedCoupon?.valid && (
+                  <p className="mt-2 text-sm text-[var(--fs-leaf-deep)]">
+                    {appliedCoupon.code} applied — you save {formatMoney(appliedCoupon.discount_amount)}
+                    {appliedCoupon.discount_type === "free_shipping" ? " (free shipping)" : ""}
+                  </p>
+                )}
+                {couponError && <p className="mt-2 text-sm text-rose-600">{couponError}</p>}
+              </section>
+
+              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
                 <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Payment</h2>
                 <div className="mt-4 space-y-2">
                   {(
@@ -297,23 +368,45 @@ export default function CheckoutPage() {
               <dl className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-[var(--fs-muted)]">Subtotal</dt>
-                  <dd>{formatMoney(cart.data.subtotal)}</dd>
+                  <dd>
+                    {formatMoney(appliedCoupon?.valid ? appliedCoupon.subtotal : cart.data.subtotal)}
+                  </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-[var(--fs-muted)]">Tax</dt>
-                  <dd>{formatMoney(cart.data.tax_amount)}</dd>
+                  <dd>
+                    {formatMoney(
+                      appliedCoupon?.valid ? appliedCoupon.tax_amount : cart.data.tax_amount,
+                    )}
+                  </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-[var(--fs-muted)]">Shipping</dt>
                   <dd>
-                    {Number(cart.data.shipping_amount) === 0
+                    {Number(
+                      appliedCoupon?.valid
+                        ? appliedCoupon.shipping_amount
+                        : cart.data.shipping_amount,
+                    ) === 0
                       ? "Free"
-                      : formatMoney(cart.data.shipping_amount)}
+                      : formatMoney(
+                          appliedCoupon?.valid
+                            ? appliedCoupon.shipping_amount
+                            : cart.data.shipping_amount,
+                        )}
                   </dd>
                 </div>
+                {appliedCoupon?.valid && Number(appliedCoupon.discount_amount) > 0 && (
+                  <div className="flex justify-between text-[var(--fs-leaf-deep)]">
+                    <dt>Discount ({appliedCoupon.code})</dt>
+                    <dd>−{formatMoney(appliedCoupon.discount_amount)}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-[var(--fs-line)] pt-2 font-semibold">
                   <dt>Total</dt>
-                  <dd>{formatMoney(cart.data.total)}</dd>
+                  <dd>
+                    {formatMoney(appliedCoupon?.valid ? appliedCoupon.total : cart.data.total)}
+                  </dd>
                 </div>
               </dl>
               <button

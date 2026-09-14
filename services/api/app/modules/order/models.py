@@ -93,6 +93,14 @@ class Order(AuditMixin, Base):
     )
     cancel_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    coupon_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("coupons.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    coupon_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
     items: Mapped[list[OrderItem]] = relationship(
         back_populates="order",
         cascade="all, delete-orphan",

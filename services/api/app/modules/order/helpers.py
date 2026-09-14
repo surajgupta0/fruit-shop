@@ -33,6 +33,23 @@ async def get_order_or_404(order_id: str | uuid.UUID, session: AsyncSession) -> 
     return order
 
 
+async def load_variant_bundle(
+    variant_id: uuid.UUID, session: AsyncSession
+):
+    from app.modules.catalog.models import Product
+
+    variant = (
+        await session.execute(
+            select(ProductVariant)
+            .where(ProductVariant.id == variant_id)
+            .options(selectinload(ProductVariant.product).selectinload(Product.images))
+        )
+    ).scalar_one_or_none()
+    if variant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Variant not found")
+    return variant, variant.product
+
+
 async def restore_stock(
     order: Order,
     session: AsyncSession,

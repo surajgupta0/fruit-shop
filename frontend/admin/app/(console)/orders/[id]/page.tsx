@@ -162,7 +162,12 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                 ["Tax", o.tax_amount],
                 ["Shipping", o.shipping_amount],
                 ...(Number(o.discount_amount) > 0
-                  ? [["Discount", `−${formatMoney(o.discount_amount)}`]]
+                  ? [
+                      [
+                        o.coupon_code ? `Discount (${o.coupon_code})` : "Discount",
+                        `−${formatMoney(o.discount_amount)}`,
+                      ],
+                    ]
                   : []),
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-3">

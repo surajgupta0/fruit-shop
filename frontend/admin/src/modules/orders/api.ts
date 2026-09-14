@@ -42,6 +42,8 @@ export type Order = {
   shipping_amount: string | number;
   discount_amount: string | number;
   total: string | number;
+  coupon_id?: string | null;
+  coupon_code?: string | null;
   shipping_label: string;
   shipping_line1: string;
   shipping_line2: string | null;

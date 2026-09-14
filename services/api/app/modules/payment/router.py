@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 from fruitshop_shared.auth_deps import User as AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
 from app.core.deps import get_current_user, get_session, require_permissions
 from app.core.schemas import ModuleHealthResponse
 from app.modules.payment import service as payment_service
@@ -40,6 +41,7 @@ async def confirm_payment(
     body: PaymentConfirmRequest,
     user: Annotated[AuthUser, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> PaymentResponse:
     return await payment_service.confirm_payment(
         user.sub,
@@ -47,6 +49,7 @@ async def confirm_payment(
         body,
         session,
         actor_id=user.sub,
+        settings=settings,
     )
 
 
@@ -60,10 +63,12 @@ async def refund_payment_admin(
     body: PaymentRefundRequest,
     user: Annotated[AuthUser, Depends(require_permissions(ORDERS_MANAGE))],
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> PaymentResponse:
     return await payment_service.refund_payment_admin(
         str(order_id),
         session,
         reason=body.reason,
         actor_id=user.sub,
+        settings=settings,
     )

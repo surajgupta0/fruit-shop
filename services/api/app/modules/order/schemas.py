@@ -19,6 +19,7 @@ class AuditFields(BaseModel):
 class CheckoutRequest(BaseModel):
     address_id: UUID
     payment_method: PaymentMethod = PaymentMethod.cod
+    coupon_code: str | None = Field(default=None, max_length=40)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -58,6 +59,8 @@ class OrderResponse(AuditFields):
     shipping_amount: Decimal
     discount_amount: Decimal
     total: Decimal
+    coupon_id: UUID | str | None = None
+    coupon_code: str | None = None
     shipping_label: str
     shipping_line1: str
     shipping_line2: str | None = None
