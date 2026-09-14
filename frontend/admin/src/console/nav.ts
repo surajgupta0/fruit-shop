@@ -16,6 +16,7 @@ export type NavIcon =
   | "orders"
   | "coupon"
   | "bell"
+  | "star"
   | "users"
   | "shield";
 
@@ -100,6 +101,14 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Discount codes and promotions",
     group: "commerce",
     icon: "coupon",
+  },
+  {
+    href: "/reviews",
+    label: "Reviews",
+    permission: P.REVIEWS_MANAGE,
+    description: "Moderate product ratings",
+    group: "commerce",
+    icon: "star",
   },
   {
     href: "/notifications",

@@ -87,6 +87,13 @@ export function ProductCard({ product }: { product: ProductSummary }) {
         <h3 className="mt-1 line-clamp-2 text-[15px] font-extrabold leading-snug text-[var(--fs-ink)] group-hover:text-[var(--fs-accent-deep)]">
           {product.name}
         </h3>
+        {(product.review_count ?? 0) > 0 && (
+          <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-[var(--fs-muted)]">
+            <span className="text-[var(--fs-accent)]">★</span>
+            {Number(product.average_rating ?? 0).toFixed(1)}
+            <span className="font-medium">({product.review_count})</span>
+          </p>
+        )}
         <p className="mt-auto pt-3 text-sm font-extrabold text-[var(--fs-ink)]">
           {formatMoney(product.min_price) ?? priceLabel(product)}
           {product.unit_label ? (

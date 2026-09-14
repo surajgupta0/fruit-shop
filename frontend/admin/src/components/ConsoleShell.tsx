@@ -92,6 +92,15 @@ function NavGlyph({ icon }: { icon: NavIcon }) {
           <path d="M10 20a2 2 0 0 0 4 0" />
         </svg>
       );
+    case "star":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path
+            d="M12 3.5 14.6 9l5.9.9-4.3 4.2 1 5.9L12 17.3 6.8 20l1-5.9L3.5 9.9 9.4 9 12 3.5z"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
     case "users":
       return (
         <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">

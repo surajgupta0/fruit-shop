@@ -10,6 +10,8 @@ import {
   ProductSkeletonGrid,
   SectionHeader,
 } from "@/src/components/ProductCard";
+import { ProductReviewsSection } from "@/src/components/ProductReviews";
+import { StarRating } from "@/src/components/StarRating";
 import { StoreShell } from "@/src/components/StoreChrome";
 import {
   catalogApi,
@@ -17,6 +19,7 @@ import {
   variantAvailableQty,
   variantIsPurchasable,
 } from "@/src/modules/catalog/api";
+import { averageRatingNumber } from "@/src/modules/reviews/api";
 import { cartApi } from "@/src/modules/orders/api";
 
 function ProductPageSkeleton() {
@@ -218,6 +221,17 @@ export default function ProductPage() {
             </div>
 
             <h1 className="fs-section-title mt-3 text-3xl sm:text-4xl">{p.name}</h1>
+            {(p.review_count ?? 0) > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <StarRating value={averageRatingNumber(p.average_rating)} />
+                <span className="text-sm font-extrabold tabular-nums text-[var(--fs-ink)]">
+                  {averageRatingNumber(p.average_rating).toFixed(1)}
+                </span>
+                <span className="text-sm font-medium text-[var(--fs-muted)]">
+                  ({p.review_count} review{p.review_count === 1 ? "" : "s"})
+                </span>
+              </div>
+            )}
             {p.short_description && (
               <p className="mt-3 text-sm font-medium leading-relaxed text-[var(--fs-muted)]">
                 {p.short_description}
@@ -426,6 +440,15 @@ export default function ProductPage() {
             </p>
           </section>
         )}
+
+        <ProductReviewsSection
+          productId={p.id}
+          productSlug={p.slug}
+          averageRating={p.average_rating}
+          reviewCount={p.review_count}
+          ratingBreakdown={p.rating_breakdown}
+          onReviewChanged={() => void detail.refetch()}
+        />
 
         {p.attributes.filter((a) => a.is_visible).length > 0 && (
           <section className="mt-12 max-w-3xl">

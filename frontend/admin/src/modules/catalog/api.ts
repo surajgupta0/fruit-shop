@@ -112,6 +112,8 @@ export type ProductSummary = {
   max_price: string | number | null;
   in_stock?: boolean;
   total_stock?: number;
+  average_rating?: string | number;
+  review_count?: number;
   tag_slugs: string[];
 };
 

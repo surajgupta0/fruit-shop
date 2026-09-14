@@ -10,6 +10,7 @@ import { orderStatusLabel, type OrderStatus } from "@/src/modules/orders/api";
 const NAV = [
   { href: "/account", label: "Overview", exact: true },
   { href: "/account/orders", label: "Orders", exact: false },
+  { href: "/account/reviews", label: "Reviews", exact: false },
   { href: "/account/addresses", label: "Addresses", exact: false },
 ] as const;
 

@@ -46,6 +46,8 @@ export type ProductSummary = {
   max_price: string | number | null;
   in_stock?: boolean;
   total_stock?: number;
+  average_rating?: string | number;
+  review_count?: number;
   tag_slugs: string[];
 };
 
@@ -132,6 +134,9 @@ export type ProductDetail = {
     related_name: string | null;
     related_slug: string | null;
   }>;
+  average_rating?: string | number;
+  review_count?: number;
+  rating_breakdown?: Record<string, number> | Record<number, number>;
 };
 
 export type ProductListResponse = {

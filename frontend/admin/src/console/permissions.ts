@@ -17,6 +17,7 @@ export const P = {
   ORDERS_READ: "orders:read",
   COUPONS_MANAGE: "coupons:manage",
   NOTIFICATIONS_READ: "notifications:read",
+  REVIEWS_MANAGE: "reviews:manage",
 } as const;
 
 export type PermissionCode = (typeof P)[keyof typeof P];
