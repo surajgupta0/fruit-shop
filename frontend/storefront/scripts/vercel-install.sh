@@ -1,58 +1,83 @@
 #!/usr/bin/env bash
-# Vercel Root Directory = frontend/storefront → this script lives in scripts/
-# Monorepo root is three levels up from scripts/: scripts → storefront → frontend → repo
+# Vercel Root Directory = frontend/storefront
+# Ensures Linux native bindings for Tailwind v4 (@tailwindcss/oxide) + lightningcss.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-STORE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-STORE_NM="$STORE_DIR/node_modules"
+APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_NM="$APP_DIR/node_modules"
 
 echo "repo root: $ROOT"
-echo "storefront: $STORE_DIR"
+echo "app dir:   $APP_DIR"
 cd "$ROOT"
 
 npm install --include=optional --include=dev --foreground-scripts
 
-# Install Linux native binding (Vercel builders are linux-x64)
-npm install -w storefront lightningcss-linux-x64-gnu@1.32.0 --no-save --foreground-scripts || true
-npm install lightningcss-linux-x64-gnu@1.32.0 --no-save --foreground-scripts || true
+ensure_native_pkg() {
+  local pkg="$1"   # e.g. lightningcss-linux-x64-gnu@1.32.0 or @tailwindcss/oxide-linux-x64-gnu@4.3.2
+  local name="$2"  # directory / package name without version
 
-mkdir -p "$STORE_NM"
+  echo "→ ensuring $name"
 
-find_pkg() {
-  find "$ROOT/node_modules" "$STORE_NM" \
-    -type d -name 'lightningcss-linux-x64-gnu' 2>/dev/null | head -1
+  npm install -w storefront "$pkg" --no-save --foreground-scripts || true
+  npm install "$pkg" --no-save --foreground-scripts || true
+
+  local found=""
+  # Prefer an already-installed copy under the monorepo
+  found="$(find "$ROOT/node_modules" "$APP_NM" -type d -path "*/${name}" 2>/dev/null | head -1 || true)"
+
+  if [ -z "$found" ]; then
+    echo "  packing $pkg from registry…"
+    local tmp
+    tmp="$(mktemp -d)"
+    (
+      cd "$tmp"
+      npm pack "$pkg"
+      tar -xzf ./*.tgz
+    )
+    found="$tmp/package"
+  fi
+
+  if [ ! -d "$found" ]; then
+    echo "ERROR: could not obtain $name" >&2
+    exit 1
+  fi
+
+  # Place where Node will resolve it from the app's nested modules
+  local dest_parent="$APP_NM"
+  case "$name" in
+    @*/*)
+      local scope="${name%%/*}"
+      dest_parent="$APP_NM/$scope"
+      mkdir -p "$dest_parent"
+      ;;
+    *)
+      mkdir -p "$APP_NM"
+      ;;
+  esac
+
+  local dest="$APP_NM/$name"
+  rm -rf "$dest"
+  mkdir -p "$(dirname "$dest")"
+  cp -R "$found" "$dest"
+  echo "  installed → $dest"
 }
 
-PKG="$(find_pkg || true)"
+# Versions must match lockfile / installed Tailwind
+ensure_native_pkg "lightningcss-linux-x64-gnu@1.32.0" "lightningcss-linux-x64-gnu"
+ensure_native_pkg "@tailwindcss/oxide-linux-x64-gnu@4.3.2" "@tailwindcss/oxide-linux-x64-gnu"
 
-# Last resort: download tarball from npm registry
-if [ -z "${PKG:-}" ]; then
-  echo "optional install missed; packing lightningcss-linux-x64-gnu from registry…"
-  TMP="$(mktemp -d)"
-  (
-    cd "$TMP"
-    npm pack lightningcss-linux-x64-gnu@1.32.0
-    tar -xzf lightningcss-linux-x64-gnu-*.tgz
-  )
-  PKG="$TMP/package"
+# lightningcss fallback: also drop .node next to the package
+if [ -d "$APP_NM/lightningcss" ]; then
+  NODE_FILE="$(find "$APP_NM/lightningcss-linux-x64-gnu" -name 'lightningcss.linux-x64-gnu.node' 2>/dev/null | head -1 || true)"
+  if [ -n "${NODE_FILE:-}" ]; then
+    cp "$NODE_FILE" "$APP_NM/lightningcss/lightningcss.linux-x64-gnu.node"
+  fi
 fi
 
-if [ -z "${PKG:-}" ] || [ ! -d "$PKG" ]; then
-  echo "ERROR: lightningcss-linux-x64-gnu not available" >&2
-  ls -la "$ROOT/node_modules" 2>&1 | head -40 >&2 || true
-  exit 1
-fi
-
-echo "Found native package at: $PKG"
-rm -rf "$STORE_NM/lightningcss-linux-x64-gnu"
-cp -R "$PKG" "$STORE_NM/lightningcss-linux-x64-gnu"
-
-NODE_FILE="$(find "$PKG" -name 'lightningcss.linux-x64-gnu.node' | head -1 || true)"
-if [ -n "${NODE_FILE:-}" ] && [ -d "$STORE_NM/lightningcss" ]; then
-  cp "$NODE_FILE" "$STORE_NM/lightningcss/lightningcss.linux-x64-gnu.node"
-  echo "Copied native .node into lightningcss/"
-fi
-
-node -e "require('$STORE_NM/lightningcss'); console.log('lightningcss native OK')"
+echo "Verifying natives…"
+cd "$APP_DIR"
+node -e "require('lightningcss'); console.log('lightningcss OK')"
+node -e "require('@tailwindcss/oxide'); console.log('oxide OK')"
+echo "vercel-install complete"
