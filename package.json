@@ -11,5 +11,9 @@
     "dev:storefront": "npm run dev -w storefront",
     "build:admin": "npm run build -w admin",
     "build:storefront": "npm run build -w storefront"
+  },
+  "allowScripts": {
+    "sharp": true,
+    "unrs-resolver": true
   }
 }
