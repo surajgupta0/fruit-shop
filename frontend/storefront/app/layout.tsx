@@ -5,14 +5,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Fruit Shop — Fresh fruit, delivered",
+    default: "Fruit Shop — Fresh fruit, delivered happy",
     template: "%s · Fruit Shop",
   },
   description:
-    "Order farm-fresh fruit online. Seasonal picks, exotic finds, and phone OTP checkout.",
+    "Colorful fresh fruit delivered to your door. Seasonal picks, exotic finds, and easy phone OTP checkout.",
   openGraph: {
     title: "Fruit Shop",
-    description: "Farm-fresh fruit, delivered to your door.",
+    description: "Juicy fresh fruit, delivered with a smile.",
     type: "website",
   },
 };
@@ -28,11 +28,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="flex min-h-full flex-col bg-[var(--fs-cream)] text-[var(--fs-ink)]">
+      <body className="flex min-h-full flex-col bg-[var(--fs-canvas)] text-[var(--fs-ink)]">
         <Providers>{children}</Providers>
       </body>
     </html>

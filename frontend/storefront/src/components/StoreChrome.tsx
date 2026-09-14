@@ -7,14 +7,9 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { cartApi } from "@/src/modules/orders/api";
 
-function FruitMark({ light = false }: { light?: boolean }) {
+function FruitMark() {
   return (
-    <span
-      className={`fs-brand-mark inline-grid size-9 place-items-center rounded-xl ${
-        light ? "text-white" : "text-white"
-      }`}
-      aria-hidden
-    >
+    <span className="fs-brand-mark inline-grid size-9 place-items-center rounded-2xl text-white" aria-hidden>
       <svg viewBox="0 0 24 24" className="size-5" fill="currentColor">
         <path
           d="M12 3c.4 1.6 1.4 2.6 3 3-1.2.2-2.2.8-2.8 1.8C11.4 6.8 10.2 5.6 8.5 5c1.5-.2 2.8-1 3.5-2z"
@@ -27,13 +22,19 @@ function FruitMark({ light = false }: { light?: boolean }) {
 }
 
 const NAV_LINKS = [
-  { href: "/shop", label: "Shop" },
-  { href: "/shop?featured=1", label: "Featured" },
+  { href: "/shop", label: "Shop all" },
+  { href: "/shop?featured=1", label: "Bestsellers" },
   { href: "/shop?organic=1", label: "Organic" },
 ] as const;
 
+const PROMO_ITEMS = [
+  "Free delivery on orders over ₹499",
+  "Fresh picks packed after you order",
+  "Exotic & seasonal fruit every week",
+  "Easy phone OTP checkout",
+];
+
 type HeaderProps = {
-  /** Transparent over hero imagery */
   variant?: "hero" | "solid";
 };
 
@@ -47,10 +48,10 @@ function CartLink({ hero }: { hero: boolean }) {
   return (
     <Link
       href={isAuthenticated ? "/cart" : "/login?next=/cart"}
-      className={`relative inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm transition ${
+      className={`relative inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold transition ${
         hero
-          ? "text-white/85 hover:bg-white/10 hover:text-white"
-          : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)] hover:text-[var(--fs-ink)]"
+          ? "text-white/90 hover:bg-white/15 hover:text-white"
+          : "text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
       }`}
       aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
     >
@@ -62,11 +63,27 @@ function CartLink({ hero }: { hero: boolean }) {
       </svg>
       <span className="hidden sm:inline">Cart</span>
       {count > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 grid min-w-[1.125rem] place-items-center rounded-full bg-[var(--fs-mango)] px-1 text-[10px] font-bold text-[var(--fs-orchard)]">
+        <span className="absolute -right-0.5 -top-0.5 grid min-w-[1.125rem] place-items-center rounded-full bg-[var(--fs-berry)] px-1 text-[10px] font-bold text-white shadow-sm">
           {count > 99 ? "99+" : count}
         </span>
       )}
     </Link>
+  );
+}
+
+export function PromoBar() {
+  const doubled = [...PROMO_ITEMS, ...PROMO_ITEMS];
+  return (
+    <div className="fs-promo-bar relative z-50 overflow-hidden text-white">
+      <div className="fs-marquee-track gap-10 py-2.5 text-[12px] font-bold uppercase tracking-[0.14em] sm:text-[13px]">
+        {doubled.map((item, i) => (
+          <span key={`${item}-${i}`} className="inline-flex shrink-0 items-center gap-10 px-2">
+            <span>{item}</span>
+            <span aria-hidden className="size-1.5 rounded-full bg-white/70" />
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -81,24 +98,25 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
   }, [pathname]);
 
   const linkBase = hero
-    ? "text-white/85 hover:text-white hover:bg-white/10"
+    ? "text-white/90 hover:text-white hover:bg-white/15"
     : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]";
 
   return (
     <header
       className={
         hero
-          ? "absolute inset-x-0 top-0 z-50"
-          : "sticky top-0 z-40 border-b border-[var(--fs-line)]/80 bg-white/90 backdrop-blur-md"
+          ? "relative z-40"
+          : "sticky top-0 z-40 border-b border-[var(--fs-line)]/90 bg-white/92 backdrop-blur-md"
       }
     >
+      {!hero ? <PromoBar /> : null}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
         <Link
           href="/"
           className={`flex items-center gap-2.5 ${hero ? "text-white" : "text-[var(--fs-ink)]"}`}
         >
           <FruitMark />
-          <span className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight sm:text-2xl">
+          <span className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight sm:text-[1.65rem]">
             Fruit Shop
           </span>
         </Link>
@@ -108,14 +126,14 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded-full px-3.5 py-2 text-sm transition ${linkBase}`}
+              className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${linkBase}`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-1.5 text-sm sm:gap-2">
           <CartLink hero={hero} />
           {bootstrapping ? (
             <span className={hero ? "text-white/50" : "text-[var(--fs-muted)]"}>…</span>
@@ -123,8 +141,8 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
             <>
               <Link
                 href="/account"
-                className={`hidden truncate max-w-[9rem] sm:inline ${
-                  hero ? "text-white/85" : "text-[var(--fs-muted)]"
+                className={`hidden truncate max-w-[9rem] font-semibold sm:inline ${
+                  hero ? "text-white/90" : "text-[var(--fs-muted)]"
                 }`}
               >
                 {user.name}
@@ -133,8 +151,8 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
                 href="/account"
                 className={
                   hero
-                    ? "rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-white backdrop-blur-sm hover:bg-white/20"
-                    : "rounded-full border border-[var(--fs-line)] bg-white px-3.5 py-2 text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
+                    ? "rounded-full border border-white/30 bg-white/15 px-3.5 py-2 font-semibold text-white backdrop-blur-sm hover:bg-white/25"
+                    : "rounded-full border border-[var(--fs-line)] bg-white px-3.5 py-2 font-semibold text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
                 }
               >
                 Account
@@ -146,8 +164,8 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
                 }}
                 className={
                   hero
-                    ? "rounded-full px-3 py-2 text-white/80 hover:bg-white/10"
-                    : "rounded-full px-3 py-2 text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
+                    ? "rounded-full px-3 py-2 font-medium text-white/85 hover:bg-white/10"
+                    : "rounded-full px-3 py-2 font-medium text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
                 }
               >
                 Sign out
@@ -155,15 +173,16 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
             </>
           ) : (
             <>
-              <Link
-                href="/login"
-                className={`rounded-full px-3.5 py-2 ${linkBase}`}
-              >
+              <Link href="/login" className={`rounded-full px-3.5 py-2 font-semibold ${linkBase}`}>
                 Sign in
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-[var(--fs-mango)] px-4 py-2 font-semibold text-[var(--fs-orchard)] shadow-sm transition hover:bg-[var(--fs-citrus)]"
+                className={
+                  hero
+                    ? "rounded-full bg-white px-4 py-2 font-bold text-[var(--fs-leaf-deep)] shadow-sm transition hover:bg-[var(--fs-citrus)]"
+                    : "rounded-full bg-[var(--fs-leaf)] px-4 py-2 font-bold text-white shadow-sm transition hover:bg-[var(--fs-leaf-deep)]"
+                }
               >
                 Sign up
               </Link>
@@ -172,9 +191,9 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
 
           <button
             type="button"
-            className={`inline-flex size-10 items-center justify-center rounded-xl md:hidden ${
+            className={`inline-flex size-10 items-center justify-center rounded-2xl md:hidden ${
               hero
-                ? "border border-white/25 text-white"
+                ? "border border-white/30 text-white"
                 : "border border-[var(--fs-line)] text-[var(--fs-ink)]"
             }`}
             aria-label="Open menu"
@@ -194,7 +213,7 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
         <div
           className={`border-t md:hidden ${
             hero
-              ? "border-white/15 bg-[var(--fs-orchard)]/95 text-white"
+              ? "border-white/20 bg-[#2a2420]/95 text-white"
               : "border-[var(--fs-line)] bg-white"
           }`}
         >
@@ -203,7 +222,7 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-lg px-3 py-2.5 text-sm"
+                className="rounded-xl px-3 py-2.5 text-sm font-semibold"
                 onClick={() => setOpen(false)}
               >
                 {item.label}
@@ -211,23 +230,35 @@ export function SiteHeader({ variant = "solid" }: HeaderProps) {
             ))}
             <Link
               href={isAuthenticated ? "/cart" : "/login?next=/cart"}
-              className="rounded-lg px-3 py-2.5 text-sm"
+              className="rounded-xl px-3 py-2.5 text-sm font-semibold"
               onClick={() => setOpen(false)}
             >
               Cart
             </Link>
             {!bootstrapping && !isAuthenticated && (
               <>
-                <Link href="/login" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
+                <Link
+                  href="/login"
+                  className="rounded-xl px-3 py-2.5 text-sm font-semibold"
+                  onClick={() => setOpen(false)}
+                >
                   Sign in
                 </Link>
-                <Link href="/signup" className="rounded-lg px-3 py-2.5 text-sm font-semibold" onClick={() => setOpen(false)}>
+                <Link
+                  href="/signup"
+                  className="rounded-xl px-3 py-2.5 text-sm font-bold text-[var(--fs-leaf)]"
+                  onClick={() => setOpen(false)}
+                >
                   Sign up
                 </Link>
               </>
             )}
             {isAuthenticated && (
-              <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
+              <Link
+                href="/account"
+                className="rounded-xl px-3 py-2.5 text-sm font-semibold"
+                onClick={() => setOpen(false)}
+              >
                 Account
               </Link>
             )}
@@ -242,23 +273,24 @@ export function StoreFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto border-t border-[var(--fs-line)] bg-[var(--fs-orchard)] text-white">
+    <footer className="mt-auto overflow-hidden bg-[var(--fs-orchard)] text-white">
+      <div className="h-1.5 bg-[linear-gradient(90deg,#ff5a36,#ffb703,#e63956,#4cc9f0,#7b5cff)]" />
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-4 lg:px-8">
         <div className="md:col-span-1">
           <div className="flex items-center gap-2.5">
             <FruitMark />
-            <p className="font-[family-name:var(--font-fraunces)] text-xl">Fruit Shop</p>
+            <p className="font-[family-name:var(--font-display)] text-2xl font-bold">Fruit Shop</p>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-white/65">
-            Farm-fresh and exotic fruit, packed with care and delivered to your door.
+            Bright, juicy fruit for everyday snacking — packed with care and delivered with a smile.
           </p>
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[var(--fs-mango)]">
             Shop
           </p>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
+          <ul className="mt-3 space-y-2 text-sm font-medium text-white/80">
             <li>
               <Link href="/shop" className="hover:text-white">
                 All fruit
@@ -266,7 +298,7 @@ export function StoreFooter() {
             </li>
             <li>
               <Link href="/shop?featured=1" className="hover:text-white">
-                Featured
+                Bestsellers
               </Link>
             </li>
             <li>
@@ -278,10 +310,10 @@ export function StoreFooter() {
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[var(--fs-mango)]">
             Account
           </p>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
+          <ul className="mt-3 space-y-2 text-sm font-medium text-white/80">
             <li>
               <Link href="/login" className="hover:text-white">
                 Sign in
@@ -302,30 +334,25 @@ export function StoreFooter() {
                 Cart
               </Link>
             </li>
-            <li>
-              <Link href="/account" className="hover:text-white">
-                My account
-              </Link>
-            </li>
           </ul>
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-            Delivery
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[var(--fs-mango)]">
+            Why us
           </p>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
-            <li>Same-day in select cities</li>
-            <li>Phone OTP login — no password</li>
-            <li>Packed for freshness</li>
+          <ul className="mt-3 space-y-2 text-sm font-medium text-white/80">
+            <li>Hand-picked for ripeness</li>
+            <li>Phone OTP — no passwords</li>
+            <li>Careful packing, happy unboxing</li>
           </ul>
         </div>
       </div>
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p>© {year} Fruit Shop. All rights reserved.</p>
-          <p>Fresh · Seasonal · Delivered</p>
+          <p>© {year} Fruit Shop. Made for fruit lovers.</p>
+          <p>Juicy · Colorful · Delivered</p>
         </div>
       </div>
     </footer>
