@@ -25,45 +25,44 @@ export function ForgotPasswordForm() {
   return (
     <AuthShell
       title="Reset your password"
-      subtitle="Enter your staff email. If an account exists, we’ll send reset instructions."
+      subtitle="Enter your staff email. If an account exists, we’ll send a secure reset link."
     >
       <form
         onSubmit={onSubmit}
-        className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]"
+        className="rounded-2xl border border-[var(--fs-line)] bg-white p-6 shadow-[var(--fs-shadow)] sm:p-7"
         noValidate
       >
-        <h2 className="text-2xl font-extrabold text-[var(--fs-ink)]">Forgot password</h2>
-        <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">
-          We’ll email a secure reset link.
-        </p>
-
         {sent ? (
-          <div className="mt-6 space-y-4">
-            <p className="rounded-xl bg-[var(--fs-mist)] px-4 py-3 text-sm font-semibold text-[var(--fs-accent-deep)]">
+          <div className="space-y-4 text-center">
+            <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--fs-mist)] text-[var(--fs-accent)]">
+              <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16v12H4z" />
+                <path d="M4 7l8 6 8-6" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-[var(--fs-ink)]">
               Check your inbox for a reset link. It expires in about an hour.
             </p>
             <Link
               href="/login"
-              className="inline-block text-sm font-bold text-[var(--fs-accent)] hover:underline"
+              className="inline-block text-sm font-extrabold text-[var(--fs-accent)] hover:underline"
             >
-              Back to sign in
+              ← Back to sign in
             </Link>
           </div>
         ) : (
           <>
-            <div className="mt-6">
-              <Field label="Work email">
-                <Input
-                  type="email"
-                  name="email"
-                  autoComplete="username"
-                  placeholder="you@fruitshop.example"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </Field>
-            </div>
+            <Field label="Work email">
+              <Input
+                type="email"
+                name="email"
+                autoComplete="username"
+                placeholder="you@fruitshop.example"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </Field>
 
             <Btn
               type="submit"
@@ -75,7 +74,7 @@ export function ForgotPasswordForm() {
 
             <p className="mt-5 text-center text-sm font-medium text-[var(--fs-muted)]">
               <Link href="/login" className="font-extrabold text-[var(--fs-accent)] hover:underline">
-                Back to sign in
+                ← Back to sign in
               </Link>
             </p>
           </>

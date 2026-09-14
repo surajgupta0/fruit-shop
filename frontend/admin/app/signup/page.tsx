@@ -12,23 +12,31 @@ export const metadata: Metadata = {
 export default function AdminSignupPage() {
   return (
     <AuthShell
-      title="Staff access is by invitation"
-      subtitle="Admin and staff users are provisioned from the console with role-based permissions. Ask your workspace admin to create your account."
+      title="Staff access by invite"
+      subtitle="Accounts are created in the console with roles and permissions. Ask your admin to provision you."
     >
-      <div className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]">
-        <h2 className="text-xl font-extrabold text-[var(--fs-ink)]">How to get access</h2>
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm font-medium text-[var(--fs-muted)]">
-          <li>Ask an admin to create your staff user.</li>
-          <li>They assign a role with the right permissions.</li>
-          <li>Sign in here with your work email and password.</li>
+      <div className="rounded-2xl border border-[var(--fs-line)] bg-white p-6 shadow-[var(--fs-shadow)] sm:p-7">
+        <ol className="space-y-4">
+          {[
+            "Ask an admin to create your staff user.",
+            "They assign a role with the right permissions.",
+            "Sign in here with your work email and password.",
+          ].map((step, i) => (
+            <li key={step} className="flex gap-3 text-sm font-medium text-[var(--fs-muted)]">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--fs-mist)] text-xs font-extrabold text-[var(--fs-accent-deep)]">
+                {i + 1}
+              </span>
+              <span className="pt-1 text-[var(--fs-ink)]">{step}</span>
+            </li>
+          ))}
         </ol>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/login" className="fs-btn-primary">
+        <div className="mt-8 flex flex-col gap-2">
+          <Link href="/login" className="fs-btn-primary w-full !rounded-xl">
             Back to sign in
           </Link>
           <a
             href="mailto:admin@fruitshop.example?subject=Staff%20access%20request"
-            className="rounded-xl border border-[var(--fs-line)] px-5 py-2.5 text-sm font-bold text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
+            className="rounded-xl px-4 py-2.5 text-center text-sm font-bold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
           >
             Email admin
           </a>

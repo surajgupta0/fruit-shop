@@ -6,6 +6,19 @@ import { P, type PermissionCode } from "./permissions";
 
 export type NavGroup = "main" | "catalog" | "commerce" | "team";
 
+export type NavIcon =
+  | "home"
+  | "box"
+  | "stock"
+  | "folder"
+  | "tag"
+  | "brand"
+  | "orders"
+  | "coupon"
+  | "bell"
+  | "users"
+  | "shield";
+
 export type NavItem = {
   href: string;
   label: string;
@@ -13,6 +26,7 @@ export type NavItem = {
   permission: PermissionCode | null;
   description: string;
   group: NavGroup;
+  icon: NavIcon;
 };
 
 export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
@@ -29,6 +43,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: null,
     description: "Ops dashboard and shortcuts",
     group: "main",
+    icon: "home",
   },
   {
     href: "/products",
@@ -36,6 +51,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.CATALOG_MANAGE,
     description: "Catalog SKUs and listings",
     group: "catalog",
+    icon: "box",
   },
   {
     href: "/inventory",
@@ -43,6 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.INVENTORY_MANAGE,
     description: "Stock levels and low-stock alerts",
     group: "catalog",
+    icon: "stock",
   },
   {
     href: "/categories",
@@ -50,6 +67,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.CATALOG_MANAGE,
     description: "Fruit collections and trees",
     group: "catalog",
+    icon: "folder",
   },
   {
     href: "/brands",
@@ -57,6 +75,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.CATALOG_MANAGE,
     description: "Suppliers and brand labels",
     group: "catalog",
+    icon: "brand",
   },
   {
     href: "/tags",
@@ -64,6 +83,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.CATALOG_MANAGE,
     description: "Labels for filtering",
     group: "catalog",
+    icon: "tag",
   },
   {
     href: "/orders",
@@ -71,6 +91,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.ORDERS_MANAGE,
     description: "Customer orders and fulfilment",
     group: "commerce",
+    icon: "orders",
   },
   {
     href: "/coupons",
@@ -78,6 +99,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.COUPONS_MANAGE,
     description: "Discount codes and promotions",
     group: "commerce",
+    icon: "coupon",
   },
   {
     href: "/notifications",
@@ -85,6 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.NOTIFICATIONS_READ,
     description: "Order email and SMS delivery log",
     group: "commerce",
+    icon: "bell",
   },
   {
     href: "/users",
@@ -92,6 +115,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.USERS_LIST,
     description: "Staff, admins, and customers",
     group: "team",
+    icon: "users",
   },
   {
     href: "/roles",
@@ -99,6 +123,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: P.ROLES_LIST,
     description: "Roles and permission codes",
     group: "team",
+    icon: "shield",
   },
 ];
 
@@ -117,7 +142,6 @@ export function pageDescription(pathname: string): string | undefined {
   return match?.description;
 }
 
-/** Permission required for the current path (null = open to any signed-in user). */
 export function requiredPermissionForPath(pathname: string): PermissionCode | null {
   const match = NAV_ITEMS.find((item) => isNavActive(pathname, item.href));
   return match?.permission ?? null;

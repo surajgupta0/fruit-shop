@@ -8,6 +8,7 @@ import { RequirePermission } from "@/src/components/RequirePermission";
 import { P } from "@/src/console/permissions";
 import {
   Btn,
+  ConsolePage,
   EmptyState,
   ErrorLine,
   Field,
@@ -175,8 +176,9 @@ function InventoryPanel() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <ConsolePage width="wide">
       <PageHeader
+        eyebrow="Catalog"
         title="Inventory"
         description="On-hand, reserved, and available stock with an audited movement ledger."
       />
@@ -504,7 +506,7 @@ function InventoryPanel() {
           </Surface>
         </div>
       </div>
-    </div>
+    </ConsolePage>
   );
 }
 

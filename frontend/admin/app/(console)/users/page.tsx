@@ -8,15 +8,19 @@ import { Can, RequirePermission } from "@/src/components/RequirePermission";
 import { P } from "@/src/console/permissions";
 import {
   Btn,
+  ConsolePage,
   EmptyState,
   ErrorLine,
   Field,
   Input,
-  LoadingLine,
   PageHeader,
+  Pagination,
   Select,
   StatusPill,
   Surface,
+  TableHead,
+  TableSkeleton,
+  Toolbar,
 } from "@/src/console/ui";
 import { usersApi, type CreateUserInput } from "@/src/modules/users/api";
 
@@ -46,11 +50,11 @@ function CreateUserForm({
   const roleValue = form.role === "admin" && !canCreateAdmin ? "staff" : form.role;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--fs-accent-deep)]/40 p-4 backdrop-blur-[2px] sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:items-center">
       <div
         role="dialog"
         aria-labelledby="create-user-title"
-        className="w-full max-w-md rounded-2xl border border-[var(--fs-line)] bg-white p-6 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-[var(--fs-line)] bg-white p-6 shadow-[var(--fs-shadow)]"
       >
         <h2
           id="create-user-title"
@@ -58,7 +62,7 @@ function CreateUserForm({
         >
           Create staff user
         </h2>
-        <p className="mt-1 text-sm text-[var(--fs-muted)]">
+        <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">
           Staff and admins sign in with email and password.
         </p>
 
@@ -107,6 +111,8 @@ function CreateUserForm({
             </Select>
           </Field>
 
+          {create.error && <ErrorLine message={create.error.message} />}
+
           <div className="flex justify-end gap-2 pt-2">
             <Btn type="button" variant="ghost" onClick={onClose}>
               Cancel
@@ -146,10 +152,12 @@ function UsersPanel() {
 
   const list = useQuery(() => usersApi.list(params), [params]);
   const totalPages = list.data ? Math.max(1, Math.ceil(list.data.total / list.data.page_size)) : 1;
+  const hasFilters = Boolean(search || role || activeFilter);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <ConsolePage>
       <PageHeader
+        eyebrow="Team"
         title="Users"
         description="Create desk logins, change roles, and activate or pause accounts."
         actions={
@@ -159,7 +167,7 @@ function UsersPanel() {
         }
       />
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <Toolbar>
         <Input
           type="search"
           placeholder="Search name, email, phone…"
@@ -168,6 +176,7 @@ function UsersPanel() {
             setSearch(e.target.value);
             setPage(1);
           }}
+          className="sm:min-w-[220px] sm:flex-1"
         />
         <Select
           value={role}
@@ -175,6 +184,7 @@ function UsersPanel() {
             setRole(e.target.value);
             setPage(1);
           }}
+          className="sm:w-36"
         >
           <option value="">All roles</option>
           <option value="customer">Customer</option>
@@ -187,48 +197,80 @@ function UsersPanel() {
             setActiveFilter(e.target.value);
             setPage(1);
           }}
+          className="sm:w-36"
         >
           <option value="">Any status</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>
         </Select>
-      </div>
+        {hasFilters && (
+          <Btn
+            variant="ghost"
+            className="!py-2"
+            onClick={() => {
+              setSearch("");
+              setRole("");
+              setActiveFilter("");
+              setPage(1);
+            }}
+          >
+            Clear
+          </Btn>
+        )}
+      </Toolbar>
 
       <Surface>
-        {list.isLoading && <LoadingLine label="Loading users…" />}
+        {list.isLoading && <TableSkeleton rows={8} />}
         {list.error && <ErrorLine message={list.error.message} />}
-        {list.data && (
+        {list.data && list.data.items.length === 0 && (
+          <EmptyState
+            title="No users match"
+            body={
+              hasFilters
+                ? "Try clearing filters or searching a different name."
+                : "Create a staff user to get started."
+            }
+            action={
+              canCreate ? (
+                <Btn onClick={() => setCreateOpen(true)}>Create user</Btn>
+              ) : undefined
+            }
+          />
+        )}
+        {list.data && list.data.items.length > 0 && (
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/60 text-[11px] uppercase tracking-[0.1em] text-[var(--fs-muted)]">
-                    <th className="px-4 py-3 font-semibold">Name</th>
-                    <th className="px-4 py-3 font-semibold">Contact</th>
-                    <th className="px-4 py-3 font-semibold">Role</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
+                <TableHead>
+                  <tr>
+                    <th className="px-4 py-3 sm:px-5">Name</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Status</th>
                   </tr>
-                </thead>
+                </TableHead>
                 <tbody className="divide-y divide-[var(--fs-line)]">
                   {list.data.items.map((u) => (
-                    <tr key={u.id} className="transition hover:bg-[var(--fs-mist)]/40">
-                      <td className="px-4 py-3.5">
+                    <tr key={u.id} className="transition hover:bg-[var(--fs-mist)]/50">
+                      <td className="px-4 py-3.5 sm:px-5">
                         {canRead ? (
                           <Link
                             href={`/users/${u.id}`}
-                            className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-accent)]"
+                            className="font-extrabold text-[var(--fs-ink)] hover:text-[var(--fs-accent-deep)]"
                           >
                             {u.name}
                           </Link>
                         ) : (
-                          <span className="font-medium text-[var(--fs-ink)]">{u.name}</span>
+                          <span className="font-extrabold text-[var(--fs-ink)]">{u.name}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-[var(--fs-muted)]">
-                        <div className="truncate">{u.email || "—"}</div>
-                        <div className="text-xs">{u.phone}</div>
+                      <td className="px-4 py-3.5">
+                        <div className="truncate font-medium">{u.email || "—"}</div>
+                        <div className="text-xs font-medium text-[var(--fs-muted)]">{u.phone}</div>
                       </td>
-                      <td className="px-4 py-3.5 capitalize text-stone-700">{u.role}</td>
+                      <td className="px-4 py-3.5 capitalize font-semibold text-[var(--fs-muted)]">
+                        {u.role}
+                      </td>
                       <td className="px-4 py-3.5">
                         <StatusPill tone={u.is_active ? "ok" : "neutral"}>
                           {u.is_active ? "Active" : "Inactive"}
@@ -239,35 +281,13 @@ function UsersPanel() {
                 </tbody>
               </table>
             </div>
-            {list.data.items.length === 0 && (
-              <EmptyState
-                title="No users match"
-                body="Try clearing filters or creating a staff user."
-              />
-            )}
-            <div className="flex items-center justify-between border-t border-[var(--fs-line)] px-4 py-3 text-sm text-[var(--fs-muted)]">
-              <span>
-                {list.data.total} total · page {list.data.page} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Btn
-                  variant="secondary"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="!py-1.5"
-                >
-                  Prev
-                </Btn>
-                <Btn
-                  variant="secondary"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="!py-1.5"
-                >
-                  Next
-                </Btn>
-              </div>
-            </div>
+            <Pagination
+              page={list.data.page}
+              totalPages={totalPages}
+              total={list.data.total}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+            />
           </>
         )}
       </Surface>
@@ -280,7 +300,7 @@ function UsersPanel() {
           canCreateAdmin={hasRole("admin")}
         />
       </Can>
-    </div>
+    </ConsolePage>
   );
 }
 

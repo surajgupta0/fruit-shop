@@ -6,22 +6,46 @@ import type {
 } from "react";
 import Link from "next/link";
 
+/** Page wrapper — keeps console content aligned and scannable. */
+export function ConsolePage({
+  children,
+  width = "default",
+}: {
+  children: ReactNode;
+  width?: "narrow" | "default" | "wide";
+}) {
+  const max =
+    width === "narrow" ? "max-w-3xl" : width === "wide" ? "max-w-6xl" : "max-w-5xl";
+  return <div className={`mx-auto w-full ${max}`}>{children}</div>;
+}
+
 export function PageHeader({
+  eyebrow,
   title,
   description,
   actions,
   breadcrumb,
 }: {
+  eyebrow?: string;
   title: string;
   description?: string;
   actions?: ReactNode;
   breadcrumb?: ReactNode;
 }) {
   return (
-    <div className="fs-rise mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="fs-rise mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--fs-line)] pb-6">
       <div className="min-w-0">
         {breadcrumb}
-        <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-[var(--fs-ink)] sm:text-[2rem]">
+        {eyebrow ? (
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[var(--fs-accent)]">
+            {eyebrow}
+          </p>
+        ) : null}
+        <h1
+          className={`text-[1.65rem] font-extrabold leading-tight tracking-tight text-[var(--fs-ink)] sm:text-[1.85rem] ${
+            eyebrow ? "mt-1" : ""
+          }`}
+        >
           {title}
         </h1>
         {description ? (
@@ -46,12 +70,45 @@ export function Surface({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[var(--fs-radius)] border border-[var(--fs-line)] bg-[var(--fs-surface)] shadow-[var(--fs-shadow-sm)] ${
+      className={`overflow-hidden rounded-2xl border border-[var(--fs-line)] bg-white shadow-[var(--fs-shadow-sm)] ${
         padded ? "p-5 sm:p-6" : ""
       } ${className}`}
     >
       {children}
     </div>
+  );
+}
+
+export function Panel({
+  title,
+  description,
+  action,
+  children,
+  padded = true,
+}: {
+  title?: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  padded?: boolean;
+}) {
+  return (
+    <Surface padded={false}>
+      {(title || action) && (
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--fs-line)] px-5 py-4">
+          <div className="min-w-0">
+            {title ? (
+              <h2 className="text-base font-extrabold text-[var(--fs-ink)]">{title}</h2>
+            ) : null}
+            {description ? (
+              <p className="mt-0.5 text-sm font-medium text-[var(--fs-muted)]">{description}</p>
+            ) : null}
+          </div>
+          {action}
+        </div>
+      )}
+      <div className={padded ? "p-5" : ""}>{children}</div>
+    </Surface>
   );
 }
 
@@ -80,12 +137,12 @@ export function StatCard({
 }) {
   const toneBorder =
     tone === "danger"
-      ? "border-rose-200"
+      ? "border-rose-200 bg-rose-50/40"
       : tone === "warn"
-        ? "border-amber-200"
+        ? "border-amber-200 bg-amber-50/40"
         : tone === "ok"
-          ? "border-[var(--fs-accent)]/30"
-          : "border-[var(--fs-line)]";
+          ? "border-[var(--fs-accent)]/25 bg-[var(--fs-mist)]/40"
+          : "border-[var(--fs-line)] bg-white";
 
   const body = loading ? (
     <div className="space-y-3" aria-hidden>
@@ -99,12 +156,14 @@ export function StatCard({
         {label}
       </p>
       <p className="mt-2 text-3xl font-extrabold tracking-tight text-[var(--fs-ink)]">{value}</p>
-      {hint ? <p className="mt-1 text-xs font-medium leading-snug text-[var(--fs-muted)]">{hint}</p> : null}
+      {hint ? (
+        <p className="mt-1 text-xs font-medium leading-snug text-[var(--fs-muted)]">{hint}</p>
+      ) : null}
     </>
   );
 
-  const className = `block rounded-[var(--fs-radius)] border bg-white p-4 shadow-[var(--fs-shadow-sm)] ${toneBorder} ${
-    href && !loading ? "transition hover:border-[var(--fs-accent)]/40" : ""
+  const className = `block rounded-2xl border p-4 shadow-[var(--fs-shadow-sm)] ${toneBorder} ${
+    href && !loading ? "transition hover:border-[var(--fs-accent)]/50 hover:shadow-[var(--fs-shadow)]" : ""
   }`;
 
   if (href && !loading) {
@@ -165,7 +224,7 @@ export function Btn({
     primary:
       "bg-gradient-to-br from-[var(--fs-mango)] to-[var(--fs-accent)] text-white shadow-sm hover:brightness-105 disabled:opacity-55",
     secondary:
-      "border border-[var(--fs-line)] bg-[var(--fs-surface)] text-[var(--fs-ink)] hover:bg-[var(--fs-mist)] disabled:opacity-55",
+      "border border-[var(--fs-line)] bg-white text-[var(--fs-ink)] hover:bg-[var(--fs-mist)] disabled:opacity-55",
     ghost: "text-[var(--fs-muted)] hover:bg-black/5 hover:text-[var(--fs-ink)] disabled:opacity-55",
     danger:
       "border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 disabled:opacity-55",
@@ -173,7 +232,7 @@ export function Btn({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-bold transition disabled:cursor-not-allowed ${styles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl px-3.5 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed ${styles[variant]} ${className}`}
       {...props}
     />
   );
@@ -192,13 +251,15 @@ export function Field({
     <label className="block text-sm">
       <span className="font-bold text-[var(--fs-ink)]">{label}</span>
       <div className="mt-1.5">{children}</div>
-      {hint ? <span className="mt-1 block text-xs font-medium text-[var(--fs-muted)]">{hint}</span> : null}
+      {hint ? (
+        <span className="mt-1 block text-xs font-medium text-[var(--fs-muted)]">{hint}</span>
+      ) : null}
     </label>
   );
 }
 
 const controlClass =
-  "w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-surface)] px-3 py-2.5 text-sm font-medium text-[var(--fs-ink)] outline-none transition placeholder:text-stone-400 focus:border-[var(--fs-accent)] focus:ring-2 focus:ring-[var(--fs-accent)]/15";
+  "w-full rounded-xl border border-[var(--fs-line)] bg-white px-3.5 py-2.5 text-sm font-medium text-[var(--fs-ink)] outline-none transition placeholder:text-stone-400 focus:border-[var(--fs-accent)] focus:ring-2 focus:ring-[var(--fs-accent)]/15";
 
 export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${controlClass} ${className}`} {...props} />;
@@ -208,11 +269,27 @@ export function Select({ className = "", ...props }: SelectHTMLAttributes<HTMLSe
   return <select className={`${controlClass} ${className}`} {...props} />;
 }
 
-export function EmptyState({ title, body }: { title: string; body?: string }) {
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="px-6 py-14 text-center">
+      <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-[var(--fs-mist)] text-[var(--fs-accent)]">
+        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 7h16M4 12h10M4 17h7" strokeLinecap="round" />
+        </svg>
+      </div>
       <p className="text-base font-extrabold text-[var(--fs-ink)]">{title}</p>
-      {body ? <p className="mx-auto mt-1.5 max-w-sm text-sm font-medium text-[var(--fs-muted)]">{body}</p> : null}
+      {body ? (
+        <p className="mx-auto mt-1.5 max-w-sm text-sm font-medium text-[var(--fs-muted)]">{body}</p>
+      ) : null}
+      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -239,14 +316,17 @@ export function LoadingLine({ label = "Loading…" }: { label?: string }) {
   );
 }
 
-export function TableSkeleton({ rows = 5 }: { rows?: number }) {
+export function TableSkeleton({ rows = 6 }: { rows?: number }) {
   return (
-    <div className="space-y-0 divide-y divide-[var(--fs-line)]" role="status" aria-label="Loading">
+    <div className="divide-y divide-[var(--fs-line)]" role="status" aria-label="Loading">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-4 py-4 sm:px-5">
-          <div className="fs-skeleton h-4 w-1/4" />
-          <div className="fs-skeleton h-4 w-1/5" />
-          <div className="fs-skeleton ml-auto h-4 w-16" />
+          <div className="fs-skeleton size-10 shrink-0 !rounded-lg" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="fs-skeleton h-3.5 w-2/5" />
+            <div className="fs-skeleton h-3 w-1/4" />
+          </div>
+          <div className="fs-skeleton h-6 w-16 !rounded-full" />
         </div>
       ))}
     </div>
@@ -283,7 +363,7 @@ export function PageLoader({
 export function SkeletonBlock({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`rounded-[var(--fs-radius)] border border-[var(--fs-line)] bg-white shadow-[var(--fs-shadow-sm)] ${className}`}
+      className={`rounded-2xl border border-[var(--fs-line)] bg-white shadow-[var(--fs-shadow-sm)] ${className}`}
       aria-hidden
     >
       <div className="space-y-3 p-4">
@@ -324,7 +404,7 @@ export function AlertBanner({
   return (
     <div
       role="status"
-      className={`flex flex-col gap-3 rounded-[var(--fs-radius)] border px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 ${styles[tone]}`}
+      className={`flex flex-col gap-3 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 ${styles[tone]}`}
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
@@ -354,12 +434,18 @@ export function ErrorLine({ message }: { message: string }) {
   );
 }
 
-export function FilterBar({ children }: { children: ReactNode }) {
+/** Filter/search toolbar above tables — matches storefront shop filter clarity. */
+export function Toolbar({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-4 flex flex-col gap-2 rounded-[var(--fs-radius)] border border-[var(--fs-line)] bg-white p-3 shadow-[var(--fs-shadow-sm)] sm:flex-row sm:items-center">
+    <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-[var(--fs-line)] bg-white p-3 shadow-[var(--fs-shadow-sm)] sm:flex-row sm:flex-wrap sm:items-center">
       {children}
     </div>
   );
+}
+
+/** @deprecated use Toolbar */
+export function FilterBar({ children }: { children: ReactNode }) {
+  return <Toolbar>{children}</Toolbar>;
 }
 
 export function TableHead({ children }: { children: ReactNode }) {
@@ -370,7 +456,46 @@ export function TableHead({ children }: { children: ReactNode }) {
   );
 }
 
-/** Soft orange auth shell for login / forgot / reset / signup. */
+export function Pagination({
+  page,
+  totalPages,
+  total,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--fs-line)] px-4 py-3">
+      <p className="text-sm font-medium text-[var(--fs-muted)]">
+        <span className="font-extrabold text-[var(--fs-ink)]">{total}</span> total · page{" "}
+        <span className="font-extrabold text-[var(--fs-ink)]">{page}</span> of {totalPages}
+      </p>
+      <div className="flex gap-2">
+        <Btn variant="secondary" className="!py-1.5" disabled={page <= 1} onClick={onPrev}>
+          Previous
+        </Btn>
+        <Btn
+          variant="secondary"
+          className="!py-1.5"
+          disabled={page >= totalPages}
+          onClick={onNext}
+        >
+          Next
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Centered auth layout — same pattern as storefront OTP login:
+ * brand mark → title → one card. Easy to theme via CSS variables.
+ */
 export function AuthShell({
   title,
   subtitle,
@@ -384,21 +509,11 @@ export function AuthShell({
     <div className="relative min-h-dvh overflow-hidden bg-[var(--fs-canvas)]">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_480px_at_10%_-10%,rgba(251,146,60,0.28),transparent),radial-gradient(700px_400px_at_90%_0%,rgba(249,115,22,0.12),transparent)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[var(--fs-mist)] to-transparent"
       />
-      <div
-        aria-hidden
-        className="fs-drift pointer-events-none absolute -left-16 bottom-10 h-56 w-56 rounded-full bg-[var(--fs-mango)]/20 blur-2xl"
-      />
-      <div
-        aria-hidden
-        className="fs-drift pointer-events-none absolute -right-10 top-24 h-72 w-72 rounded-full bg-[var(--fs-accent)]/10 blur-3xl"
-        style={{ animationDelay: "1.5s" }}
-      />
-
-      <main className="relative z-10 mx-auto grid min-h-dvh max-w-6xl items-center gap-10 px-6 py-12 lg:grid-cols-2">
-        <section className="fs-rise">
-          <div className="flex items-center gap-3">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10 sm:px-6">
+        <div className="mb-8 text-center">
+          <Link href="/login" className="inline-flex items-center gap-2.5">
             <span className="fs-brand-mark grid size-11 place-items-center rounded-2xl">
               <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden>
                 <path
@@ -408,18 +523,22 @@ export function AuthShell({
                 <ellipse cx="12" cy="14.5" rx="6.5" ry="7" />
               </svg>
             </span>
-            <p className="text-2xl font-extrabold tracking-tight text-[var(--fs-ink)]">Fruit Shop</p>
-          </div>
-          <h1 className="mt-6 max-w-md text-3xl font-extrabold tracking-tight text-[var(--fs-ink)] sm:text-4xl">
+            <span className="text-xl font-extrabold tracking-tight text-[var(--fs-ink)]">
+              Fruit Shop
+            </span>
+          </Link>
+          <p className="mt-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[var(--fs-accent)]">
+            Admin console
+          </p>
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-[var(--fs-ink)] sm:text-3xl">
             {title}
           </h1>
-          <p className="mt-3 max-w-sm text-sm font-medium leading-relaxed text-[var(--fs-muted)]">
+          <p className="mt-2 text-sm font-medium leading-relaxed text-[var(--fs-muted)]">
             {subtitle}
           </p>
-        </section>
-
-        <section className="fs-rise-delay mx-auto w-full max-w-md">{children}</section>
-      </main>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

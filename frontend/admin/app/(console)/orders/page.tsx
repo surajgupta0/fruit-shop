@@ -9,15 +9,19 @@ import { RequirePermission } from "@/src/components/RequirePermission";
 import { P } from "@/src/console/permissions";
 import {
   Btn,
+  ConsolePage,
   EmptyState,
   ErrorLine,
   Input,
-  LoadingLine,
   PageHeader,
+  Pagination,
   Select,
+  StatCard,
   StatusPill,
   Surface,
-  StatCard,
+  TableHead,
+  TableSkeleton,
+  Toolbar,
 } from "@/src/console/ui";
 import {
   formatMoney,
@@ -70,19 +74,21 @@ function OrdersPanel() {
     const items = list.data?.items ?? [];
     return {
       pageTotal: items.reduce((sum, o) => sum + Number(o.total), 0),
-      pending: items.filter((o) => o.status === "pending").length,
       active: items.filter((o) => !["delivered", "cancelled"].includes(o.status)).length,
     };
   }, [list.data]);
 
+  const hasFilters = Boolean(status || paymentStatus || search);
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <ConsolePage width="wide">
       <PageHeader
+        eyebrow="Commerce"
         title="Orders"
-        description="Customer orders — fulfilment status, payments, and shipping details."
+        description="Fulfilment status, payments, and shipping — click a row to manage."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <StatCard
           label="Total orders"
           value={list.data?.total ?? 0}
@@ -103,7 +109,7 @@ function OrdersPanel() {
         />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <Toolbar>
         <Input
           type="search"
           placeholder="Search order #, phone, name, tracking…"
@@ -112,7 +118,7 @@ function OrdersPanel() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="sm:max-w-xs"
+          className="sm:min-w-[240px] sm:flex-1"
         />
         <Select
           value={status}
@@ -120,7 +126,7 @@ function OrdersPanel() {
             setStatus(e.target.value as OrderStatus | "");
             setPage(1);
           }}
-          className="sm:max-w-[11rem]"
+          className="sm:w-40"
         >
           <option value="">All statuses</option>
           {ORDER_STATUSES.map((s) => (
@@ -135,7 +141,7 @@ function OrdersPanel() {
             setPaymentStatus(e.target.value as PaymentStatus | "");
             setPage(1);
           }}
-          className="sm:max-w-[11rem]"
+          className="sm:w-40"
         >
           <option value="">All payments</option>
           {(["pending", "paid", "failed", "refunded"] as PaymentStatus[]).map((s) => (
@@ -144,59 +150,87 @@ function OrdersPanel() {
             </option>
           ))}
         </Select>
-      </div>
+        {hasFilters && (
+          <Btn
+            variant="ghost"
+            className="!py-2"
+            onClick={() => {
+              setSearch("");
+              setStatus("");
+              setPaymentStatus("");
+              setPage(1);
+            }}
+          >
+            Clear
+          </Btn>
+        )}
+      </Toolbar>
 
       <Surface>
-        {list.isLoading && <LoadingLine label="Loading orders…" />}
+        {list.isLoading && <TableSkeleton rows={8} />}
         {list.error && <ErrorLine message={list.error.message} />}
-        {list.data && (
+        {list.data && list.data.items.length === 0 && (
+          <EmptyState
+            title="No orders found"
+            body={
+              hasFilters
+                ? "Try clearing filters or searching a different order number."
+                : "Orders appear here when customers check out on the storefront."
+            }
+          />
+        )}
+        {list.data && list.data.items.length > 0 && (
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/60 text-[11px] uppercase tracking-[0.1em] text-[var(--fs-muted)]">
-                    <th className="px-4 py-3 font-semibold">Order</th>
-                    <th className="px-4 py-3 font-semibold">Customer</th>
-                    <th className="px-4 py-3 font-semibold">Items</th>
-                    <th className="px-4 py-3 font-semibold">Total</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Payment</th>
+                <TableHead>
+                  <tr>
+                    <th className="px-4 py-3 sm:px-5">Order</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Items</th>
+                    <th className="px-4 py-3">Total</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Payment</th>
                   </tr>
-                </thead>
+                </TableHead>
                 <tbody className="divide-y divide-[var(--fs-line)]">
                   {list.data.items.map((order) => (
-                    <tr key={order.id} className="hover:bg-[var(--fs-mist)]/40">
-                      <td className="px-4 py-3">
+                    <tr key={order.id} className="transition hover:bg-[var(--fs-mist)]/50">
+                      <td className="px-4 py-3.5 sm:px-5">
                         <Link
                           href={`/orders/${order.id}`}
-                          className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-accent)]"
+                          className="font-extrabold text-[var(--fs-ink)] hover:text-[var(--fs-accent-deep)]"
                         >
                           {order.order_number}
                         </Link>
-                        <p className="text-xs text-[var(--fs-muted)]">
+                        <p className="text-xs font-medium text-[var(--fs-muted)]">
                           {formatWhen(order.created_at)}
                         </p>
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{order.customer_name}</p>
-                        <p className="text-xs text-[var(--fs-muted)]">{order.customer_phone}</p>
+                      <td className="px-4 py-3.5">
+                        <p className="font-bold">{order.customer_name}</p>
+                        <p className="text-xs font-medium text-[var(--fs-muted)]">
+                          {order.customer_phone}
+                        </p>
                       </td>
-                      <td className="px-4 py-3 text-[var(--fs-muted)]">
+                      <td className="px-4 py-3.5 font-medium text-[var(--fs-muted)]">
                         {order.items.reduce((n, i) => n + i.quantity, 0)} units ·{" "}
                         {order.items.length} lines
                       </td>
-                      <td className="px-4 py-3 font-medium">{formatMoney(order.total)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5 font-extrabold tabular-nums">
+                        {formatMoney(order.total)}
+                      </td>
+                      <td className="px-4 py-3.5">
                         <StatusPill tone={orderStatusTone(order.status)}>
                           {order.status}
                         </StatusPill>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <div className="flex flex-col gap-1">
                           <StatusPill tone={paymentStatusTone(order.payment_status)}>
                             {order.payment_status}
                           </StatusPill>
-                          <span className="text-[10px] uppercase tracking-wide text-[var(--fs-muted)]">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--fs-muted)]">
                             {order.payment_method}
                           </span>
                         </div>
@@ -206,46 +240,30 @@ function OrdersPanel() {
                 </tbody>
               </table>
             </div>
-            {list.data.items.length === 0 && (
-              <EmptyState
-                title="No orders yet"
-                body="Orders appear here when customers check out on the storefront."
-              />
-            )}
-            <div className="flex items-center justify-between border-t border-[var(--fs-line)] px-4 py-3 text-sm text-[var(--fs-muted)]">
-              <span>
-                {list.data.total} total · page {list.data.page} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Btn
-                  variant="secondary"
-                  className="!py-1.5"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Prev
-                </Btn>
-                <Btn
-                  variant="secondary"
-                  className="!py-1.5"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Btn>
-              </div>
-            </div>
+            <Pagination
+              page={list.data.page}
+              totalPages={totalPages}
+              total={list.data.total}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+            />
           </>
         )}
       </Surface>
-    </div>
+    </ConsolePage>
   );
 }
 
 export default function OrdersPage() {
   return (
     <RequirePermission permission={P.ORDERS_MANAGE}>
-      <Suspense fallback={<LoadingLine label="Loading orders…" />}>
+      <Suspense
+        fallback={
+          <ConsolePage width="wide">
+            <TableSkeleton rows={8} />
+          </ConsolePage>
+        }
+      >
         <OrdersPanel />
       </Suspense>
     </RequirePermission>

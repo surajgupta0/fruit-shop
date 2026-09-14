@@ -35,10 +35,14 @@ export function AdminLoginForm() {
 
   if (bootstrapping) {
     return (
-      <div className="grid min-h-dvh place-items-center bg-[var(--fs-canvas)]">
-        <div className="flex items-center gap-3 text-sm font-semibold text-[var(--fs-muted)]">
-          <Spinner />
-          Checking session…
+      <div className="grid min-h-dvh place-items-center bg-[var(--fs-canvas)] px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-[var(--fs-line)] bg-white p-8 text-center shadow-[var(--fs-shadow-sm)]">
+          <Spinner className="mx-auto size-5" />
+          <p className="mt-4 text-sm font-bold text-[var(--fs-muted)]">Checking session…</p>
+          <div className="mt-6 space-y-2">
+            <div className="fs-skeleton mx-auto h-10 w-full !rounded-xl" />
+            <div className="fs-skeleton mx-auto h-10 w-full !rounded-xl" />
+          </div>
         </div>
       </div>
     );
@@ -46,71 +50,65 @@ export function AdminLoginForm() {
 
   return (
     <AuthShell
-      title="Staff console"
-      subtitle="Sign in with the email and password issued by your administrator. Customers use phone OTP on the storefront."
+      title="Sign in to continue"
+      subtitle="Use the staff email and password issued by your admin. Customers sign in on the storefront with OTP."
     >
       <form
         onSubmit={onSubmit}
-        className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]"
+        className="rounded-2xl border border-[var(--fs-line)] bg-white p-6 shadow-[var(--fs-shadow)] sm:p-7"
         noValidate
       >
-        <h2 className="text-2xl font-extrabold text-[var(--fs-ink)]">Sign in</h2>
-        <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">Admin &amp; staff access</p>
-
-        <div className="mt-6">
-          <Field label="Work email">
-            <Input
-              type="email"
-              name="email"
-              autoComplete="username"
-              placeholder="you@fruitshop.example"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </Field>
-        </div>
+        <Field label="Work email">
+          <Input
+            type="email"
+            name="email"
+            autoComplete="username"
+            placeholder="you@fruitshop.example"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </Field>
 
         <div className="mt-4">
-          <Field label="Password">
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="pr-16"
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-[var(--fs-accent)]"
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </Field>
-          <div className="mt-2 text-right">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-sm font-bold text-[var(--fs-ink)]">Password</span>
             <Link
               href="/forgot-password"
               className="text-xs font-bold text-[var(--fs-accent)] hover:underline"
             >
-              Forgot password?
+              Forgot?
             </Link>
+          </div>
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="pr-16"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-[var(--fs-accent)]"
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
           </div>
         </div>
 
         <Btn type="submit" disabled={mutation.isLoading} className="mt-6 w-full !py-3">
-          {mutation.isLoading ? "Signing in…" : "Continue"}
+          {mutation.isLoading ? "Signing in…" : "Sign in"}
         </Btn>
 
         <p className="mt-5 text-center text-sm font-medium text-[var(--fs-muted)]">
-          Need an account?{" "}
+          Need access?{" "}
           <Link href="/signup" className="font-extrabold text-[var(--fs-accent)] hover:underline">
-            Request staff access
+            Request staff invite
           </Link>
         </p>
       </form>

@@ -5,12 +5,15 @@ import { useQuery } from "@fruitshop/web-core";
 import { RequirePermission } from "@/src/components/RequirePermission";
 import { P } from "@/src/console/permissions";
 import {
+  ConsolePage,
   EmptyState,
   ErrorLine,
-  LoadingLine,
   PageHeader,
+  Panel,
   SectionLabel,
   Surface,
+  TableHead,
+  TableSkeleton,
 } from "@/src/console/ui";
 import { usersApi } from "@/src/modules/users/api";
 
@@ -19,46 +22,72 @@ function RolesPanel() {
   const permissions = useQuery(() => usersApi.listPermissions(), []);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <ConsolePage>
       <PageHeader
+        eyebrow="Team"
         title="Roles"
-        description="See which permissions each role grants."
+        description="See which permissions each role grants — assigned when you create or edit users."
       />
 
       <section>
         <SectionLabel>Roles</SectionLabel>
-        {roles.isLoading && <LoadingLine label="Loading roles…" />}
+        {roles.isLoading && (
+          <div className="grid gap-3 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Surface key={i} padded>
+                <div className="fs-skeleton h-6 w-24" />
+                <div className="fs-skeleton mt-3 h-4 w-full" />
+                <div className="fs-skeleton mt-2 h-4 w-3/4" />
+                <div className="mt-4 space-y-2 border-t border-[var(--fs-line)] pt-3">
+                  <div className="fs-skeleton h-8 w-full !rounded-lg" />
+                  <div className="fs-skeleton h-8 w-full !rounded-lg" />
+                  <div className="fs-skeleton h-8 w-5/6 !rounded-lg" />
+                </div>
+              </Surface>
+            ))}
+          </div>
+        )}
         {roles.error && <ErrorLine message={roles.error.message} />}
-        <div className="grid gap-3 lg:grid-cols-3">
-          {(roles.data ?? []).map((role) => (
-            <Surface key={role.id} padded>
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-lg font-extrabold capitalize text-[var(--fs-ink)]">
-                  {role.name}
-                </h3>
-                <span className="rounded-md bg-[var(--fs-mist)] px-2 py-0.5 text-[11px] font-medium text-[var(--fs-accent-deep)]">
-                  {role.permissions.length}
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-[var(--fs-muted)]">
-                {role.description || "No description"}
-              </p>
-              <ul className="mt-4 max-h-52 space-y-1 overflow-y-auto border-t border-[var(--fs-line)] pt-3">
-                {role.permissions.map((code) => (
-                  <li key={code} className="font-mono text-[11px] text-stone-600">
-                    {code}
-                  </li>
-                ))}
-              </ul>
-            </Surface>
-          ))}
-        </div>
+        {roles.data && roles.data.length === 0 && (
+          <EmptyState title="No roles" body="Roles are seeded with the API." />
+        )}
+        {roles.data && roles.data.length > 0 && (
+          <div className="grid gap-3 lg:grid-cols-3">
+            {roles.data.map((role) => (
+              <Panel
+                key={role.id}
+                title={role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                description={role.description || "No description"}
+                action={
+                  <span className="rounded-lg bg-[var(--fs-mist)] px-2.5 py-1 text-[11px] font-extrabold tabular-nums text-[var(--fs-accent-deep)]">
+                    {role.permissions.length}
+                  </span>
+                }
+                padded
+              >
+                <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+                  {role.permissions.length === 0 && (
+                    <li className="text-sm font-medium text-[var(--fs-muted)]">No permissions</li>
+                  )}
+                  {role.permissions.map((code) => (
+                    <li
+                      key={code}
+                      className="rounded-lg bg-[var(--fs-canvas)] px-2.5 py-1.5 font-mono text-[11px] font-semibold text-[var(--fs-ink)]"
+                    >
+                      {code}
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>
         <SectionLabel>Permission catalog</SectionLabel>
         <Surface>
-          {permissions.isLoading && <LoadingLine />}
+          {permissions.isLoading && <TableSkeleton rows={8} />}
           {permissions.error && <ErrorLine message={permissions.error.message} />}
           {permissions.data && permissions.data.length === 0 && (
             <EmptyState title="No permissions seeded" />
@@ -66,19 +95,19 @@ function RolesPanel() {
           {permissions.data && permissions.data.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/60 text-[11px] uppercase tracking-[0.1em] text-[var(--fs-muted)]">
-                    <th className="px-4 py-3 font-semibold">Code</th>
-                    <th className="px-4 py-3 font-semibold">Description</th>
+                <TableHead>
+                  <tr>
+                    <th className="px-4 py-3 sm:px-5">Code</th>
+                    <th className="px-4 py-3">Description</th>
                   </tr>
-                </thead>
+                </TableHead>
                 <tbody className="divide-y divide-[var(--fs-line)]">
                   {permissions.data.map((p) => (
-                    <tr key={p.id} className="hover:bg-[var(--fs-mist)]/30">
-                      <td className="px-4 py-2.5 font-mono text-xs text-[var(--fs-accent-deep)]">
+                    <tr key={p.id} className="transition hover:bg-[var(--fs-mist)]/50">
+                      <td className="px-4 py-2.5 sm:px-5 font-mono text-xs font-semibold text-[var(--fs-accent-deep)]">
                         {p.code}
                       </td>
-                      <td className="px-4 py-2.5 text-[var(--fs-muted)]">
+                      <td className="px-4 py-2.5 font-medium text-[var(--fs-muted)]">
                         {p.description || "—"}
                       </td>
                     </tr>
@@ -89,7 +118,7 @@ function RolesPanel() {
           )}
         </Surface>
       </section>
-    </div>
+    </ConsolePage>
   );
 }
 

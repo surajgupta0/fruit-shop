@@ -43,17 +43,17 @@ export function ResetPasswordForm() {
         title="Reset link incomplete"
         subtitle="Open the link from your email, or request a new password reset."
       >
-        <div className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]">
+        <div className="rounded-2xl border border-[var(--fs-line)] bg-white p-6 text-center shadow-[var(--fs-shadow)] sm:p-7">
           <p className="text-sm font-medium text-[var(--fs-muted)]">
             The reset token is missing from this URL.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/forgot-password" className="fs-btn-primary">
+          <div className="mt-6 flex flex-col gap-2">
+            <Link href="/forgot-password" className="fs-btn-primary w-full !rounded-xl">
               Request reset
             </Link>
             <Link
               href="/login"
-              className="rounded-xl border border-[var(--fs-line)] px-5 py-2.5 text-sm font-bold text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
+              className="rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
             >
               Sign in
             </Link>
@@ -70,37 +70,30 @@ export function ResetPasswordForm() {
     >
       <form
         onSubmit={onSubmit}
-        className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]"
+        className="rounded-2xl border border-[var(--fs-line)] bg-white p-6 shadow-[var(--fs-shadow)] sm:p-7"
         noValidate
       >
-        <h2 className="text-2xl font-extrabold text-[var(--fs-ink)]">New password</h2>
-        <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">
-          Make it strong and unique to this console.
-        </p>
-
-        <div className="mt-6">
-          <Field label="New password">
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="pr-16"
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-[var(--fs-accent)]"
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </Field>
-        </div>
+        <Field label="New password">
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              className="pr-16"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-[var(--fs-accent)]"
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </Field>
 
         <div className="mt-4">
           <Field label="Confirm password">
@@ -130,7 +123,7 @@ export function ResetPasswordForm() {
 
         <p className="mt-5 text-center text-sm font-medium text-[var(--fs-muted)]">
           <Link href="/login" className="font-extrabold text-[var(--fs-accent)] hover:underline">
-            Back to sign in
+            ← Back to sign in
           </Link>
         </p>
       </form>

@@ -8,10 +8,9 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import {
   groupedNav,
   isNavActive,
-  pageDescription,
-  pageTitle,
   requiredPermissionForPath,
   visibleNav,
+  type NavIcon,
 } from "@/src/console/nav";
 import { RequirePermission } from "@/src/components/RequirePermission";
 import { PageLoader } from "@/src/console/ui";
@@ -19,10 +18,7 @@ import { PageLoader } from "@/src/console/ui";
 function FruitMark({ size = "md" }: { size?: "sm" | "md" }) {
   const dim = size === "sm" ? "size-8" : "size-9";
   return (
-    <div
-      className={`fs-brand-mark grid ${dim} shrink-0 place-items-center rounded-xl`}
-      aria-hidden
-    >
+    <div className={`fs-brand-mark grid ${dim} shrink-0 place-items-center rounded-xl`} aria-hidden>
       <svg viewBox="0 0 24 24" className="size-[1.15em]" fill="currentColor">
         <path
           d="M12 3c.4 1.6 1.4 2.6 3 3-1.2.2-2.2.8-2.8 1.8C11.4 6.8 10.2 5.6 8.5 5c1.5-.2 2.8-1 3.5-2z"
@@ -34,17 +30,101 @@ function FruitMark({ size = "md" }: { size?: "sm" | "md" }) {
   );
 }
 
+function NavGlyph({ icon }: { icon: NavIcon }) {
+  const common = "size-4 shrink-0 opacity-90";
+  switch (icon) {
+    case "home":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" strokeLinejoin="round" />
+        </svg>
+      );
+    case "box":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 8 12 3 3 8v8l9 5 9-5V8z" strokeLinejoin="round" />
+          <path d="M12 13v8M3 8l9 5 9-5" />
+        </svg>
+      );
+    case "stock":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 19V9M10 19V5M16 19v-7M22 19V8" strokeLinecap="round" />
+        </svg>
+      );
+    case "folder":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+        </svg>
+      );
+    case "brand":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 8v8M8 12h8" strokeLinecap="round" />
+        </svg>
+      );
+    case "tag":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M20 12 12 4H5v7l8 8 7-7z" strokeLinejoin="round" />
+          <circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "orders":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M7 4h11l1 4H6l1-4zM6 8v11a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8" />
+          <path d="M9 12h6M9 16h4" strokeLinecap="round" />
+        </svg>
+      );
+    case "coupon":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 9a2 2 0 0 0 2-2V5h14v2a2 2 0 1 0 0 4v2a2 2 0 1 0 0 4v2H5v-2a2 2 0 1 0 0-4V9z" />
+        </svg>
+      );
+    case "bell":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M6 16V10a6 6 0 1 1 12 0v6l1.5 2H4.5L6 16z" strokeLinejoin="round" />
+          <path d="M10 20a2 2 0 0 0 4 0" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="9" cy="8" r="3" />
+          <path d="M3 19a6 6 0 0 1 12 0" />
+          <circle cx="17" cy="9" r="2.5" />
+          <path d="M15.5 19a4.5 4.5 0 0 1 5.5-4.3" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 3 4 6v6c0 5 3.5 8.5 8 9.5 4.5-1 8-4.5 8-9.5V6l-8-3z" strokeLinejoin="round" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 function SidebarBody({
   onNavigate,
   userName,
-  userMeta,
+  userRole,
+  userEmail,
   onLogout,
   nav,
   pathname,
 }: {
   onNavigate?: () => void;
   userName: string;
-  userMeta: string;
+  userRole: string;
+  userEmail?: string;
   onLogout: () => void | Promise<void>;
   nav: ReturnType<typeof visibleNav>;
   pathname: string;
@@ -64,12 +144,12 @@ function SidebarBody({
             Fruit Shop
           </Link>
           <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--fs-accent)]">
-            Admin console
+            Admin
           </p>
         </div>
       </div>
 
-      <nav className="mt-3 flex-1 space-y-4 overflow-y-auto px-3 pb-4" aria-label="Console">
+      <nav className="mt-3 flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Console">
         {groups.map((group) => (
           <div key={group.group}>
             {group.label ? (
@@ -87,12 +167,11 @@ function SidebarBody({
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       title={item.description}
-                      className={`block rounded-xl px-3 py-2.5 text-sm transition ${
-                        active
-                          ? "fs-nav-active"
-                          : "font-semibold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]/70 hover:text-[var(--fs-ink)]"
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition ${
+                        active ? "fs-nav-active" : "fs-nav-idle font-semibold"
                       }`}
                     >
+                      <NavGlyph icon={item.icon} />
                       {item.label}
                     </Link>
                   </li>
@@ -104,10 +183,11 @@ function SidebarBody({
       </nav>
 
       <div className="mt-auto border-t border-[var(--fs-line)] p-3">
-        <div className="rounded-xl bg-[var(--fs-mist)]/60 px-3 py-3">
+        <div className="rounded-xl bg-[var(--fs-canvas)] px-3 py-3">
           <p className="truncate text-sm font-extrabold text-[var(--fs-ink)]">{userName}</p>
           <p className="mt-0.5 truncate text-xs font-medium capitalize text-[var(--fs-muted)]">
-            {userMeta}
+            {userRole}
+            {userEmail ? ` · ${userEmail}` : ""}
           </p>
           <button
             type="button"
@@ -159,16 +239,14 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   if (!user) return null;
 
   const nav = visibleNav(hasPermission);
-  const title = pageTitle(pathname);
-  const description = pageDescription(pathname);
-  const userMeta = `${user.role}${user.email ? ` · ${user.email}` : ""}`;
   const routePermission = requiredPermissionForPath(pathname);
 
   const sidebarProps = {
     nav,
     pathname,
     userName: user.name,
-    userMeta,
+    userRole: user.role,
+    userEmail: user.email ?? undefined,
     onLogout: () => {
       void logout();
     },
@@ -191,7 +269,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
       >
         <button
           type="button"
-          className={`absolute inset-0 bg-[var(--fs-ink)]/40 transition-opacity ${
+          className={`absolute inset-0 bg-slate-900/40 transition-opacity ${
             open ? "opacity-100" : "opacity-0"
           }`}
           aria-label="Close menu"
@@ -212,8 +290,8 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 border-b border-[var(--fs-line)] bg-white/90 backdrop-blur-md">
-          <div className="flex items-center gap-3 px-3 py-3 sm:px-5 lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-[var(--fs-line)] bg-white/95 backdrop-blur-md">
+          <div className="flex items-center gap-3 px-3 py-2.5 sm:px-5 lg:px-8">
             <button
               type="button"
               className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--fs-line)] bg-white text-[var(--fs-ink)] md:hidden"
@@ -229,22 +307,18 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
               </span>
             </button>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 md:hidden">
-                <FruitMark size="sm" />
-                <p className="truncate text-base font-extrabold text-[var(--fs-ink)]">Fruit Shop</p>
-              </div>
-              <div className="hidden md:block">
-                <p className="truncate text-base font-extrabold text-[var(--fs-ink)] lg:text-lg">
-                  {title}
-                </p>
-                {description ? (
-                  <p className="truncate text-xs font-medium text-[var(--fs-muted)]">{description}</p>
-                ) : null}
-              </div>
+            <div className="flex min-w-0 flex-1 items-center gap-2 md:hidden">
+              <FruitMark size="sm" />
+              <p className="truncate text-base font-extrabold text-[var(--fs-ink)]">Fruit Shop Admin</p>
             </div>
 
-            <span className="hidden rounded-full bg-[var(--fs-mist)] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[var(--fs-accent-deep)] sm:inline">
+            <div className="hidden min-w-0 flex-1 md:block">
+              <p className="text-sm font-bold text-[var(--fs-muted)]">
+                Overview of catalog, orders, and store operations
+              </p>
+            </div>
+
+            <span className="rounded-full bg-[var(--fs-mist)] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[var(--fs-accent-deep)]">
               {user.role}
             </span>
           </div>

@@ -7,15 +7,20 @@ import { RequirePermission } from "@/src/components/RequirePermission";
 import { P } from "@/src/console/permissions";
 import {
   Btn,
+  ConsolePage,
   EmptyState,
   ErrorLine,
   Field,
   Input,
-  LoadingLine,
   PageHeader,
+  Pagination,
+  Panel,
   Select,
   StatusPill,
   Surface,
+  TableHead,
+  TableSkeleton,
+  Toolbar,
 } from "@/src/console/ui";
 import {
   couponsApi,
@@ -76,13 +81,17 @@ function CouponsPanel() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <ConsolePage>
       <PageHeader
+        eyebrow="Commerce"
         title="Coupons"
         description="Create percent, fixed, or free-shipping codes for checkout."
       />
 
-      <Surface padded>
+      <Panel
+        title="New coupon"
+        description="Codes are case-insensitive at checkout; we store them uppercase."
+      >
         <form onSubmit={onCreate} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Code">
@@ -166,9 +175,10 @@ function CouponsPanel() {
               />
             </Field>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm">
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--fs-ink)]">
             <input
               type="checkbox"
+              className="size-4 rounded border-[var(--fs-line)] accent-[var(--fs-accent)]"
               checked={form.first_order_only}
               onChange={(e) =>
                 setForm((f) => ({ ...f, first_order_only: e.target.checked }))
@@ -176,69 +186,92 @@ function CouponsPanel() {
             />
             First order only
           </label>
-          <Btn type="submit" disabled={create.isLoading || !form.code.trim() || !form.name.trim()}>
-            {create.isLoading ? "Creating…" : "Create coupon"}
-          </Btn>
+          <div className="flex flex-wrap items-center gap-3">
+            <Btn type="submit" disabled={create.isLoading || !form.code.trim() || !form.name.trim()}>
+              {create.isLoading ? "Creating…" : "Create coupon"}
+            </Btn>
+            {create.error && <ErrorLine message={create.error.message} />}
+          </div>
         </form>
-      </Surface>
+      </Panel>
 
-      <div className="flex gap-2">
+      <Toolbar>
         <Input
           type="search"
-          placeholder="Search codes…"
+          placeholder="Search codes or names…"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
             setPage(1);
           }}
+          className="sm:min-w-[220px] sm:flex-1"
         />
-      </div>
+        {search && (
+          <Btn
+            variant="ghost"
+            className="!py-2"
+            onClick={() => {
+              setSearch("");
+              setPage(1);
+            }}
+          >
+            Clear
+          </Btn>
+        )}
+      </Toolbar>
 
       <Surface>
-        {list.isLoading && <LoadingLine label="Loading coupons…" />}
+        {list.isLoading && <TableSkeleton rows={6} />}
         {list.error && <ErrorLine message={list.error.message} />}
         {list.data && list.data.items.length === 0 && (
-          <EmptyState title="No coupons" body="Create your first discount code above." />
+          <EmptyState
+            title="No coupons match"
+            body={
+              search
+                ? "Try a different code or clear search."
+                : "Create your first discount code above."
+            }
+          />
         )}
         {list.data && list.data.items.length > 0 && (
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/60 text-[11px] uppercase tracking-[0.1em] text-[var(--fs-muted)]">
-                    <th className="px-4 py-3">Code</th>
+                <TableHead>
+                  <tr>
+                    <th className="px-4 py-3 sm:px-5">Code</th>
                     <th className="px-4 py-3">Offer</th>
                     <th className="px-4 py-3">Usage</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                </thead>
+                </TableHead>
                 <tbody className="divide-y divide-[var(--fs-line)]">
                   {list.data.items.map((c) => (
-                    <tr key={c.id}>
-                      <td className="px-4 py-3">
-                        <p className="font-mono font-semibold">{c.code}</p>
-                        <p className="text-xs text-[var(--fs-muted)]">{c.name}</p>
+                    <tr key={c.id} className="transition hover:bg-[var(--fs-mist)]/50">
+                      <td className="px-4 py-3.5 sm:px-5">
+                        <p className="font-mono text-sm font-extrabold tracking-wide">{c.code}</p>
+                        <p className="text-xs font-medium text-[var(--fs-muted)]">{c.name}</p>
                       </td>
-                      <td className="px-4 py-3 text-[var(--fs-muted)]">
+                      <td className="px-4 py-3.5 font-medium text-[var(--fs-muted)]">
                         {c.discount_type === "percent" && `${c.percent_off}% off`}
                         {c.discount_type === "fixed" && `₹${c.amount_off} off`}
                         {c.discount_type === "free_shipping" && "Free shipping"}
                         {c.first_order_only ? " · first order" : ""}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5 tabular-nums font-semibold">
                         {c.usage_count}
                         {c.usage_limit != null ? ` / ${c.usage_limit}` : ""}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <StatusPill tone={c.is_active ? "ok" : "neutral"}>
                           {c.is_active ? "Active" : "Off"}
                         </StatusPill>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3.5 text-right">
                         <button
                           type="button"
-                          className="mr-3 text-xs text-[var(--fs-accent)] hover:underline"
+                          className="mr-3 text-xs font-extrabold text-[var(--fs-accent-deep)] hover:underline"
                           onClick={async () => {
                             try {
                               await couponsApi.update(c.id, { is_active: !c.is_active });
@@ -252,7 +285,7 @@ function CouponsPanel() {
                         </button>
                         <button
                           type="button"
-                          className="text-xs text-rose-600 hover:underline"
+                          className="text-xs font-extrabold text-[var(--fs-danger)] hover:underline"
                           onClick={async () => {
                             if (!confirm(`Delete ${c.code}?`)) return;
                             try {
@@ -271,33 +304,17 @@ function CouponsPanel() {
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between border-t border-[var(--fs-line)] px-4 py-3 text-sm text-[var(--fs-muted)]">
-              <span>
-                {list.data.total} total · page {list.data.page} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Btn
-                  variant="secondary"
-                  className="!py-1.5"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Prev
-                </Btn>
-                <Btn
-                  variant="secondary"
-                  className="!py-1.5"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Btn>
-              </div>
-            </div>
+            <Pagination
+              page={list.data.page}
+              totalPages={totalPages}
+              total={list.data.total}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+            />
           </>
         )}
       </Surface>
-    </div>
+    </ConsolePage>
   );
 }
 

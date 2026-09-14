@@ -6,8 +6,8 @@
   --font-fraunces: var(--font-display);
   --font-outfit: var(--font-sans);
 
-  --fs-ink: #4a3728;
-  --fs-charcoal: #4a3728;
+  --fs-ink: #0f172a;
+  --fs-charcoal: #0f172a;
   --fs-accent: #f97316;
   --fs-accent-deep: #ea580c;
   --fs-mango: #fb923c;
@@ -17,21 +17,21 @@
   --fs-berry-deep: #ea580c;
   --fs-leaf: var(--fs-accent);
   --fs-leaf-deep: var(--fs-accent-deep);
-  --fs-orchard: #4a3728;
-  --fs-mist: #fff1e6;
-  --fs-canvas: #fff8f2;
+  --fs-orchard: #0f172a;
+  --fs-mist: #fff7ed;
+  --fs-canvas: #f1f5f9;
   --fs-surface: #ffffff;
-  --fs-line: #f0e0d2;
-  --fs-muted: #8b7355;
-  --fs-ok: #57534e;
-  --fs-ok-bg: #f5f5f4;
+  --fs-line: #e2e8f0;
+  --fs-muted: #64748b;
+  --fs-ok: #047857;
+  --fs-ok-bg: #ecfdf5;
   --fs-warn: #b45309;
-  --fs-warn-bg: #fff7ed;
+  --fs-warn-bg: #fffbeb;
   --fs-danger: #b42318;
   --fs-danger-bg: #fef2f2;
   --fs-radius: 1rem;
-  --fs-shadow-sm: 0 4px 18px rgba(249, 115, 22, 0.06);
-  --fs-shadow: 0 12px 36px rgba(74, 55, 40, 0.08);
+  --fs-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --fs-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   --fs-sidebar-w: 16rem;
   --fs-cream: var(--fs-canvas);
   --background: var(--fs-canvas);
@@ -59,15 +59,15 @@ body {
 
 .fs-console {
   min-height: 100dvh;
-  background:
-    radial-gradient(900px 420px at 100% 0%, rgba(251, 146, 60, 0.08), transparent 55%),
-    var(--fs-canvas);
+  background: var(--fs-canvas);
 }
 
+/* Light panel — clear separation from slate canvas, no brown */
 .fs-sidebar {
   width: var(--fs-sidebar-w);
   background: #ffffff;
   border-right: 1px solid var(--fs-line);
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
 }
 
 .fs-brand-mark {
@@ -80,6 +80,16 @@ body {
   background: var(--fs-mist);
   color: var(--fs-accent-deep);
   font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--fs-accent);
+}
+
+.fs-nav-idle {
+  color: var(--fs-muted);
+}
+
+.fs-nav-idle:hover {
+  background: #f8fafc;
+  color: var(--fs-ink);
 }
 
 .fs-btn-primary {
@@ -136,7 +146,7 @@ body {
 
 .fs-skeleton {
   animation: fs-pulse-soft 1.4s ease-in-out infinite;
-  background: linear-gradient(90deg, #ffe8d4, #fff4eb, #ffe8d4);
+  background: linear-gradient(90deg, #e2e8f0, #f8fafc, #e2e8f0);
   background-size: 200% 100%;
   border-radius: 0.75rem;
 }
