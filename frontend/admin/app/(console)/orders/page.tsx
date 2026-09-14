@@ -11,6 +11,7 @@ import {
   Btn,
   EmptyState,
   ErrorLine,
+  Input,
   LoadingLine,
   PageHeader,
   Select,
@@ -24,6 +25,7 @@ import {
   ordersApi,
   paymentStatusTone,
   type OrderStatus,
+  type PaymentStatus,
 } from "@/src/modules/orders/api";
 
 function formatWhen(iso: string) {
@@ -46,14 +48,18 @@ function OrdersPanel() {
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<OrderStatus | "">(initialStatus);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "">("");
+  const [search, setSearch] = useState("");
 
   const params = useMemo(
     () => ({
       page,
       page_size: 20,
       status: status || undefined,
+      payment_status: paymentStatus || undefined,
+      search: search.trim() || undefined,
     }),
-    [page, status],
+    [page, status, paymentStatus, search],
   );
 
   const list = useQuery(() => ordersApi.list(params), [params]);
@@ -102,16 +108,42 @@ function OrdersPanel() {
         </Surface>
       </div>
 
-      <div className="mb-1 max-w-xs">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <Input
+          type="search"
+          placeholder="Search order #, phone, name, tracking…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="sm:max-w-xs"
+        />
         <Select
           value={status}
           onChange={(e) => {
             setStatus(e.target.value as OrderStatus | "");
             setPage(1);
           }}
+          className="sm:max-w-[11rem]"
         >
           <option value="">All statuses</option>
           {ORDER_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={paymentStatus}
+          onChange={(e) => {
+            setPaymentStatus(e.target.value as PaymentStatus | "");
+            setPage(1);
+          }}
+          className="sm:max-w-[11rem]"
+        >
+          <option value="">All payments</option>
+          {(["pending", "paid", "failed", "refunded"] as PaymentStatus[]).map((s) => (
             <option key={s} value={s}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </option>

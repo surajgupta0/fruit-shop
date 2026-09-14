@@ -29,6 +29,15 @@ export type OrderItem = {
   line_total: string | number;
 };
 
+export type OrderStatusEvent = {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  actor_id: string | null;
+  created_at: string | null;
+};
+
 export type Order = {
   id: string;
   order_number: string;
@@ -55,9 +64,17 @@ export type Order = {
   customer_phone: string;
   customer_email: string | null;
   notes: string | null;
+  internal_notes?: string | null;
   cancelled_at: string | null;
   cancel_reason: string | null;
+  tracking_number?: string | null;
+  carrier?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
   items: OrderItem[];
+  timeline?: OrderStatusEvent[];
+  next_actions?: OrderStatus[];
+  can_cancel?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -87,6 +104,10 @@ export type Payment = {
 export type AdminOrderUpdate = {
   status?: OrderStatus;
   payment_status?: PaymentStatus;
+  tracking_number?: string | null;
+  carrier?: string | null;
+  internal_notes?: string | null;
+  cancel_reason?: string | null;
 };
 
 function money(v: string | number | null | undefined) {
@@ -148,8 +169,23 @@ export const ORDER_STATUSES: OrderStatus[] = [
   "cancelled",
 ];
 
+export const STATUS_FLOW: OrderStatus[] = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+];
+
 export const ordersApi = {
-  list(params?: { page?: number; page_size?: number; status?: OrderStatus }) {
+  list(params?: {
+    page?: number;
+    page_size?: number;
+    status?: OrderStatus;
+    payment_status?: PaymentStatus;
+    payment_method?: PaymentMethod;
+    search?: string;
+  }) {
     return api.get<OrderListResponse>("/orders/admin/list", { params, auth: true });
   },
 
@@ -162,6 +198,21 @@ export const ordersApi = {
       auth: true,
       successToast: "Order updated",
     });
+  },
+
+  ship(id: string, body: { tracking_number?: string; carrier?: string; note?: string }) {
+    return api.post<Order>(`/orders/admin/${id}/ship`, body, {
+      auth: true,
+      successToast: "Order marked shipped",
+    });
+  },
+
+  setNote(id: string, note: string) {
+    return api.post<Order>(
+      `/orders/admin/${id}/notes`,
+      { note },
+      { auth: true, successToast: "Note saved" },
+    );
   },
 
   getPayment(orderId: string) {

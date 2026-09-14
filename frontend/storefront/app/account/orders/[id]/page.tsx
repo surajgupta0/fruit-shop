@@ -14,7 +14,15 @@ import {
   type OrderStatus,
 } from "@/src/modules/orders/api";
 
-function formatWhen(iso: string | null) {
+const FLOW: OrderStatus[] = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+];
+
+function formatWhen(iso: string | null | undefined) {
   if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString("en-IN", {
@@ -33,6 +41,39 @@ function statusColor(status: OrderStatus) {
   if (status === "delivered") return "text-[var(--fs-leaf)]";
   if (status === "cancelled") return "text-rose-600";
   return "text-[var(--fs-mango-deep)]";
+}
+
+function StatusStepper({ status }: { status: OrderStatus }) {
+  if (status === "cancelled") {
+    return (
+      <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+        This order was cancelled
+      </p>
+    );
+  }
+  const idx = FLOW.indexOf(status);
+  return (
+    <ol className="grid gap-2 sm:grid-cols-5">
+      {FLOW.map((step, i) => {
+        const done = idx >= i;
+        const current = idx === i;
+        return (
+          <li
+            key={step}
+            className={`rounded-xl px-3 py-2 text-center text-xs font-medium ${
+              current
+                ? "bg-[var(--fs-leaf-deep)] text-white"
+                : done
+                  ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
+                  : "bg-stone-50 text-[var(--fs-muted)]"
+            }`}
+          >
+            {orderStatusLabel(step)}
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 function OrderDetailContent() {
@@ -64,7 +105,8 @@ function OrderDetailContent() {
   }
 
   const o = order.data;
-  const canCancel = !["shipped", "delivered", "cancelled"].includes(o.status);
+  const canCancel = o.can_cancel ?? !["shipped", "delivered", "cancelled"].includes(o.status);
+  const timeline = o.timeline ?? [];
 
   return (
     <AccountShell title={o.order_number} subtitle={`Placed ${formatWhen(o.created_at)}`}>
@@ -88,6 +130,48 @@ function OrderDetailContent() {
           {orderStatusLabel(o.status)} · {o.payment_status}
         </p>
       </div>
+
+      <div className="mb-6 rounded-2xl border border-[var(--fs-line)] bg-white p-5">
+        <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Progress</h2>
+        <div className="mt-4">
+          <StatusStepper status={o.status} />
+        </div>
+        {timeline.length > 0 && (
+          <ul className="mt-5 space-y-2 border-t border-[var(--fs-line)] pt-4">
+            {[...timeline].reverse().map((event) => (
+              <li key={event.id} className="flex justify-between gap-3 text-sm">
+                <span>
+                  <span className="font-medium capitalize">{event.to_status}</span>
+                  {event.note ? (
+                    <span className="text-[var(--fs-muted)]"> — {event.note}</span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-xs text-[var(--fs-muted)]">
+                  {formatWhen(event.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {(o.tracking_number || o.carrier) && (
+        <div className="mb-6 rounded-2xl border border-[var(--fs-leaf)]/25 bg-[var(--fs-mist)]/50 p-5">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Tracking</h2>
+          <p className="mt-2 text-sm">
+            {o.carrier ? <span className="font-medium">{o.carrier}</span> : null}
+            {o.carrier && o.tracking_number ? " · " : null}
+            {o.tracking_number ? (
+              <span className="font-mono text-[var(--fs-leaf-deep)]">{o.tracking_number}</span>
+            ) : null}
+          </p>
+          {o.shipped_at && (
+            <p className="mt-1 text-xs text-[var(--fs-muted)]">
+              Shipped {formatWhen(o.shipped_at)}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -161,7 +245,11 @@ function OrderDetailContent() {
           <div className="rounded-2xl border border-[var(--fs-line)] bg-white p-5">
             <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Deliver to</h2>
             <p className="mt-2 whitespace-pre-line text-sm text-[var(--fs-muted)]">
-              {[o.shipping_line1, o.shipping_line2, `${o.shipping_city}, ${o.shipping_state} ${o.shipping_postal_code}`]
+              {[
+                o.shipping_line1,
+                o.shipping_line2,
+                `${o.shipping_city}, ${o.shipping_state} ${o.shipping_postal_code}`,
+              ]
                 .filter(Boolean)
                 .join("\n")}
             </p>

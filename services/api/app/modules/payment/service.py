@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.mixins import stamp_update
+from app.modules.coupon import service as coupon_service
 from app.modules.notification import service as notification_service
 from app.modules.order.helpers import get_order_or_404, restore_stock
 from app.modules.order.models import Order, OrderStatus, PaymentMethod, PaymentStatus
+from app.modules.order import service as order_service
 from app.modules.payment.models import Payment
 from app.modules.payment.schemas import PaymentConfirmRequest, PaymentResponse
 
@@ -100,18 +102,20 @@ async def confirm_payment(
     stamp_update(payment, aid)
 
     order.payment_status = PaymentStatus.paid
-    if order.status == OrderStatus.pending:
-        order.status = OrderStatus.confirmed
     stamp_update(order, aid)
+    changed = await order_service.mark_confirmed_after_payment(
+        order, session, actor_id=aid
+    )
 
     await session.flush()
     fresh = await get_order_or_404(order.id, session)
-    await notification_service.notify_order_status_change(
-        fresh,
-        previous_status=previous_status,
-        settings=settings,
-        session=session,
-    )
+    if changed is not None:
+        await notification_service.notify_order_status_change(
+            fresh,
+            previous_status=previous_status,
+            settings=settings,
+            session=session,
+        )
     await notification_service.notify_payment_status_change(
         fresh,
         payment_status=PaymentStatus.paid,
@@ -149,11 +153,25 @@ async def refund_payment_admin(
 
     order.payment_status = PaymentStatus.refunded
     if order.status not in (OrderStatus.cancelled, OrderStatus.delivered):
+        from app.modules.order.helpers import record_status_event
+
         await restore_stock(order, session, actor_id=aid)
+        await coupon_service.release_coupon_for_order(order.id, session, actor_id=aid)
+        prev = order.status
         order.status = OrderStatus.cancelled
         order.cancel_reason = reason or "Refunded"
         order.cancelled_at = _utcnow()
-    stamp_update(order, aid)
+        stamp_update(order, aid)
+        await record_status_event(
+            order,
+            from_status=prev.value,
+            to_status=OrderStatus.cancelled.value,
+            note=reason or "Refunded",
+            actor_id=aid,
+            session=session,
+        )
+    else:
+        stamp_update(order, aid)
 
     await session.flush()
     fresh = await get_order_or_404(order.id, session)

@@ -90,10 +90,12 @@ class OrderResponse(AuditFields):
     carrier: str | None = None
     shipped_at: datetime | None = None
     delivered_at: datetime | None = None
-    # Staff-only; omitted/null for customers via to_customer_response
+    # Staff-only; null for customers
     internal_notes: str | None = None
     items: list[OrderItemResponse]
     timeline: list[OrderStatusEventResponse] = []
+    next_actions: list[OrderStatus] = []
+    can_cancel: bool = False
 
     model_config = {"from_attributes": True}
 

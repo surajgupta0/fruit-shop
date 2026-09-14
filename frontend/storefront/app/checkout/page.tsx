@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useAuth, useMutation, useQuery } from "@fruitshop/web-core";
 
 import { StoreShell } from "@/src/components/StoreChrome";
@@ -38,6 +38,11 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [showNewAddress, setShowNewAddress] = useState(false);
+  const checkoutKeyRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `chk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   const [newAddress, setNewAddress] = useState({
     label: "home",
     line1: "",
@@ -86,6 +91,7 @@ export default function CheckoutPage() {
       payment_method: paymentMethod,
       coupon_code: appliedCoupon?.valid ? appliedCoupon.code : undefined,
       notes: notes.trim() || undefined,
+      idempotency_key: checkoutKeyRef.current,
     }),
   );
 

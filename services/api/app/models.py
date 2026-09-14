@@ -17,7 +17,7 @@ from app.modules.catalog.models import (  # noqa: F401
 from app.modules.coupon.models import Coupon, CouponRedemption  # noqa: F401
 from app.modules.inventory.models import InventoryMovement  # noqa: F401
 from app.modules.notification.models import NotificationLog  # noqa: F401
-from app.modules.order.models import Order, OrderItem  # noqa: F401
+from app.modules.order.models import Order, OrderItem, OrderStatusEvent  # noqa: F401
 from app.modules.payment.models import Payment  # noqa: F401
 from app.modules.users.models import Permission, Role, RolePermission  # noqa: F401
 
@@ -50,5 +50,6 @@ __all__ = [
     "CartItem",
     "Order",
     "OrderItem",
+    "OrderStatusEvent",
     "Payment",
 ]

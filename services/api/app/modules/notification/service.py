@@ -61,11 +61,18 @@ def _templates(order: Order, event: NotificationEvent) -> tuple[str, str, str]:
             f"Fruit Shop: order {num} is being prepared.",
         )
     if event == NotificationEvent.order_shipped:
+        tracking = ""
+        if order.tracking_number:
+            carrier = f" via {order.carrier}" if order.carrier else ""
+            tracking = f"\nTracking{carrier}: {order.tracking_number}"
+            sms_track = f" Track: {order.tracking_number}."
+        else:
+            sms_track = ""
         return (
             f"Order {num} shipped",
             f"Hi {order.customer_name},\n\nGood news — order {num} is on the way to "
-            f"{order.shipping_city}.\n\nFruit Shop",
-            f"Fruit Shop: order {num} shipped to {order.shipping_city}.",
+            f"{order.shipping_city}.{tracking}\n\nFruit Shop",
+            f"Fruit Shop: order {num} shipped to {order.shipping_city}.{sms_track}",
         )
     if event == NotificationEvent.order_delivered:
         return (

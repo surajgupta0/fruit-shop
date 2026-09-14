@@ -9,13 +9,15 @@ from app.core.config import Settings, get_settings
 from app.core.deps import get_current_user, get_session, require_permissions
 from app.core.schemas import ModuleHealthResponse
 from app.modules.order import service as order_service
-from app.modules.order.models import OrderStatus
+from app.modules.order.models import OrderStatus, PaymentMethod, PaymentStatus
 from app.modules.order.schemas import (
     AdminOrderUpdate,
     CancelOrderRequest,
     CheckoutRequest,
+    InternalNoteRequest,
     OrderListResponse,
     OrderResponse,
+    ShipOrderRequest,
 )
 from app.modules.users.rbac import ORDERS_MANAGE, ORDERS_READ
 
@@ -61,12 +63,18 @@ async def list_orders_admin(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     status_filter: OrderStatus | None = Query(None, alias="status"),
+    payment_status: PaymentStatus | None = None,
+    payment_method: PaymentMethod | None = None,
+    search: str | None = None,
 ) -> OrderListResponse:
     return await order_service.list_all_orders(
         session,
         page=page,
         page_size=page_size,
         status_filter=status_filter,
+        payment_status=payment_status,
+        payment_method=payment_method,
+        search=search,
     )
 
 
@@ -93,6 +101,38 @@ async def update_order_admin(
         session,
         actor_id=user.sub,
         settings=settings,
+    )
+
+
+@router.post("/admin/{order_id}/ship", response_model=OrderResponse)
+async def ship_order_admin(
+    order_id: UUID,
+    body: ShipOrderRequest,
+    user: Annotated[AuthUser, Depends(require_permissions(ORDERS_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> OrderResponse:
+    return await order_service.ship_order_admin(
+        str(order_id),
+        body,
+        session,
+        actor_id=user.sub,
+        settings=settings,
+    )
+
+
+@router.post("/admin/{order_id}/notes", response_model=OrderResponse)
+async def set_internal_note_admin(
+    order_id: UUID,
+    body: InternalNoteRequest,
+    user: Annotated[AuthUser, Depends(require_permissions(ORDERS_MANAGE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> OrderResponse:
+    return await order_service.set_internal_note_admin(
+        str(order_id),
+        body,
+        session,
+        actor_id=user.sub,
     )
 
 

@@ -229,7 +229,13 @@ async def test_order_status_notifications_logged(client, admin_token, session_fa
     shipped = await client.patch(
         f"/orders/admin/{order_id}",
         headers=admin,
-        json={"status": "shipped"},
+        json={"status": "processing"},
+    )
+    assert shipped.status_code == 200
+    shipped = await client.post(
+        f"/orders/admin/{order_id}/ship",
+        headers=admin,
+        json={"carrier": "Delhivery", "tracking_number": "DLV123"},
     )
     assert shipped.status_code == 200
 

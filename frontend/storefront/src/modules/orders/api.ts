@@ -81,7 +81,19 @@ export type Order = {
   notes: string | null;
   cancelled_at: string | null;
   cancel_reason: string | null;
+  tracking_number?: string | null;
+  carrier?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
   items: OrderItem[];
+  timeline?: Array<{
+    id: string;
+    from_status: string | null;
+    to_status: string;
+    note: string | null;
+    created_at: string | null;
+  }>;
+  can_cancel?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -154,6 +166,7 @@ export const ordersApi = {
     payment_method: PaymentMethod;
     coupon_code?: string;
     notes?: string;
+    idempotency_key?: string;
   }) {
     return api.post<Order>("/orders/checkout", body, {
       auth: true,
@@ -167,10 +180,18 @@ export const ordersApi = {
     return api.get<Order>(`/orders/${id}`, { auth: true });
   },
   cancel(id: string, reason?: string) {
-    return api.post<Order>(`/orders/${id}/cancel`, { reason }, { auth: true, successToast: "Order cancelled" });
+    return api.post<Order>(
+      `/orders/${id}/cancel`,
+      { reason },
+      { auth: true, successToast: "Order cancelled" },
+    );
   },
   confirmPayment(orderId: string, provider_reference?: string) {
-    return api.post(`/payments/order/${orderId}/confirm`, { provider_reference }, { auth: true });
+    return api.post(
+      `/payments/order/${orderId}/confirm`,
+      { provider_reference },
+      { auth: true },
+    );
   },
 };
 

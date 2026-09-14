@@ -11,6 +11,7 @@ import {
   Btn,
   ErrorLine,
   Field,
+  Input,
   LoadingLine,
   PageHeader,
   SectionLabel,
@@ -21,7 +22,6 @@ import {
 import {
   formatAddress,
   formatMoney,
-  ORDER_STATUSES,
   orderStatusTone,
   ordersApi,
   paymentStatusTone,
@@ -29,7 +29,7 @@ import {
   type PaymentStatus,
 } from "@/src/modules/orders/api";
 
-function formatWhen(iso: string | null) {
+function formatWhen(iso: string | null | undefined) {
   if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString("en-IN", {
@@ -52,6 +52,10 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
   const [nextStatus, setNextStatus] = useState<OrderStatus | "">("");
   const [nextPaymentStatus, setNextPaymentStatus] = useState<PaymentStatus | "">("");
+  const [carrier, setCarrier] = useState("");
+  const [tracking, setTracking] = useState("");
+  const [shipNote, setShipNote] = useState("");
+  const [internalNote, setInternalNote] = useState("");
 
   const save = useMutation(() =>
     ordersApi.update(orderId, {
@@ -59,6 +63,14 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
       payment_status: nextPaymentStatus || undefined,
     }),
   );
+  const ship = useMutation(() =>
+    ordersApi.ship(orderId, {
+      carrier: carrier.trim() || undefined,
+      tracking_number: tracking.trim() || undefined,
+      note: shipNote.trim() || undefined,
+    }),
+  );
+  const saveNote = useMutation(() => ordersApi.setNote(orderId, internalNote.trim()));
   const refund = useMutation(() => ordersApi.refund(orderId, "Admin refund"));
 
   if (order.isLoading) {
@@ -76,8 +88,9 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   const o = order.data;
-  const currentStatus = nextStatus || o.status;
-  const currentPayment = nextPaymentStatus || o.payment_status;
+  const actions = o.next_actions ?? [];
+  const timeline = o.timeline ?? [];
+  const canShip = actions.includes("shipped");
   const canRefund = payment.data?.status === "paid" && o.status !== "cancelled";
 
   return (
@@ -139,9 +152,36 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
             </ul>
           </Surface>
 
+          <Surface padded>
+            <SectionLabel>Timeline</SectionLabel>
+            {timeline.length === 0 ? (
+              <p className="text-sm text-[var(--fs-muted)]">No status events yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {[...timeline].reverse().map((event) => (
+                  <li key={event.id} className="flex gap-3 text-sm">
+                    <div className="mt-1.5 size-2 shrink-0 rounded-full bg-[var(--fs-leaf)]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium capitalize">
+                        {event.from_status ? `${event.from_status} → ` : ""}
+                        {event.to_status}
+                      </p>
+                      {event.note && (
+                        <p className="text-[var(--fs-muted)]">{event.note}</p>
+                      )}
+                      <p className="mt-0.5 text-xs text-[var(--fs-muted)]">
+                        {formatWhen(event.created_at)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Surface>
+
           {(o.notes || o.cancel_reason) && (
             <Surface padded>
-              <SectionLabel>Notes</SectionLabel>
+              <SectionLabel>Customer notes</SectionLabel>
               {o.notes && <p className="text-sm text-[var(--fs-ink)]">{o.notes}</p>}
               {o.cancel_reason && (
                 <p className="mt-2 text-sm text-rose-700">
@@ -170,7 +210,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                     ]
                   : []),
               ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3">
+                <div key={String(label)} className="flex justify-between gap-3">
                   <dt className="text-[var(--fs-muted)]">{label}</dt>
                   <dd>{typeof value === "string" ? value : formatMoney(value)}</dd>
                 </div>
@@ -199,6 +239,19 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">
               {formatAddress(o)}
             </p>
+            {(o.tracking_number || o.carrier) && (
+              <div className="mt-3 rounded-lg bg-[var(--fs-mist)] px-3 py-2 text-sm">
+                <p className="font-medium">
+                  {o.carrier || "Carrier"} ·{" "}
+                  <span className="font-mono">{o.tracking_number || "—"}</span>
+                </p>
+                {o.shipped_at && (
+                  <p className="text-xs text-[var(--fs-muted)]">
+                    Shipped {formatWhen(o.shipped_at)}
+                  </p>
+                )}
+              </div>
+            )}
           </Surface>
 
           {payment.data && (
@@ -214,12 +267,6 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                   <dd>{payment.data.provider || "—"}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--fs-muted)]">Reference</dt>
-                  <dd className="truncate font-mono text-xs">
-                    {payment.data.provider_reference || "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-2">
                   <dt className="text-[var(--fs-muted)]">Paid at</dt>
                   <dd>{formatWhen(payment.data.paid_at)}</dd>
                 </div>
@@ -228,15 +275,128 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
           )}
 
           <Surface padded>
-            <SectionLabel>Fulfilment</SectionLabel>
+            <SectionLabel>Allowed next steps</SectionLabel>
+            {actions.length === 0 ? (
+              <p className="text-sm text-[var(--fs-muted)]">No further status changes.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {actions
+                  .filter((action) => action !== "shipped")
+                  .map((action) => (
+                  <Btn
+                    key={action}
+                    variant={action === "cancelled" ? "danger" : "secondary"}
+                    disabled={save.isLoading}
+                    onClick={async () => {
+                      if (
+                        action === "cancelled" &&
+                        !confirm("Cancel this order and restore stock?")
+                      ) {
+                        return;
+                      }
+                      try {
+                        await ordersApi.update(orderId, {
+                          status: action,
+                          cancel_reason:
+                            action === "cancelled" ? "Cancelled by staff" : undefined,
+                        });
+                        await order.refetch();
+                        await payment.refetch();
+                      } catch {
+                        /* toast */
+                      }
+                    }}
+                  >
+                    Mark {action}
+                  </Btn>
+                ))}
+              </div>
+            )}
+          </Surface>
+
+          {canShip && (
+            <Surface padded>
+              <SectionLabel>Ship order</SectionLabel>
+              <form
+                className="space-y-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    await ship.mutate();
+                    setCarrier("");
+                    setTracking("");
+                    setShipNote("");
+                    await order.refetch();
+                  } catch {
+                    /* toast */
+                  }
+                }}
+              >
+                <Field label="Carrier">
+                  <Input
+                    value={carrier}
+                    onChange={(e) => setCarrier(e.target.value)}
+                    placeholder="Delhivery / BlueDart"
+                  />
+                </Field>
+                <Field label="Tracking number">
+                  <Input
+                    value={tracking}
+                    onChange={(e) => setTracking(e.target.value)}
+                    placeholder="AWB / tracking id"
+                  />
+                </Field>
+                <Field label="Note (optional)">
+                  <Input value={shipNote} onChange={(e) => setShipNote(e.target.value)} />
+                </Field>
+                <Btn type="submit" className="w-full" disabled={ship.isLoading}>
+                  {ship.isLoading ? "Shipping…" : "Mark as shipped"}
+                </Btn>
+              </form>
+            </Surface>
+          )}
+
+          <Surface padded>
+            <SectionLabel>Internal note</SectionLabel>
             <form
               className="space-y-3"
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (!nextStatus && !nextPaymentStatus) return;
+                if (!internalNote.trim()) return;
+                try {
+                  await saveNote.mutate();
+                  setInternalNote("");
+                  await order.refetch();
+                } catch {
+                  /* toast */
+                }
+              }}
+            >
+              {o.internal_notes && (
+                <p className="rounded-lg bg-[var(--fs-mist)] px-3 py-2 text-sm whitespace-pre-wrap">
+                  {o.internal_notes}
+                </p>
+              )}
+              <Input
+                value={internalNote}
+                onChange={(e) => setInternalNote(e.target.value)}
+                placeholder="Staff-only note…"
+              />
+              <Btn type="submit" variant="secondary" disabled={saveNote.isLoading || !internalNote.trim()}>
+                {saveNote.isLoading ? "Saving…" : "Save note"}
+              </Btn>
+            </form>
+          </Surface>
+
+          <Surface padded>
+            <SectionLabel>Payment status</SectionLabel>
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!nextPaymentStatus) return;
                 try {
                   await save.mutate();
-                  setNextStatus("");
                   setNextPaymentStatus("");
                   await order.refetch();
                   await payment.refetch();
@@ -245,26 +405,14 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                 }
               }}
             >
-              <Field label="Order status">
+              <Field label="Set payment status">
                 <Select
-                  value={currentStatus}
-                  onChange={(e) => setNextStatus(e.target.value as OrderStatus)}
-                >
-                  {ORDER_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Payment status">
-                <Select
-                  value={currentPayment}
+                  value={nextPaymentStatus || o.payment_status}
                   onChange={(e) => setNextPaymentStatus(e.target.value as PaymentStatus)}
                 >
                   {(["pending", "paid", "failed", "refunded"] as PaymentStatus[]).map((s) => (
                     <option key={s} value={s}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s}
                     </option>
                   ))}
                 </Select>
@@ -274,10 +422,11 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                 className="w-full"
                 disabled={
                   save.isLoading ||
-                  (currentStatus === o.status && currentPayment === o.payment_status)
+                  !nextPaymentStatus ||
+                  nextPaymentStatus === o.payment_status
                 }
               >
-                {save.isLoading ? "Saving…" : "Update order"}
+                Update payment
               </Btn>
             </form>
 
