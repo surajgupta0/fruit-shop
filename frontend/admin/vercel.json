@@ -1,4 +1,4 @@
 {
-  "installCommand": "cd ../.. && npm install --include=optional --foreground-scripts",
+  "installCommand": "cd ../.. && npm install --include=optional --include=dev --foreground-scripts && npm install -w admin lightningcss-linux-x64-gnu@1.32.0 --no-save --foreground-scripts",
   "buildCommand": "cd ../.. && npm run build -w admin"
 }
