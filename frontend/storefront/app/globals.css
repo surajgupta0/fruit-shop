@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --font-fraunces: "Fraunces", ui-serif, Georgia, serif;
+  --font-outfit: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --fs-ink: #1c2f20;
   --fs-leaf: #2f8f4e;
   --fs-leaf-deep: #14532d;
