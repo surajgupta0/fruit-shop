@@ -4,13 +4,20 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth, useMutation, useQuery } from "@fruitshop/web-core";
 
-import { AccountShell } from "@/src/components/AccountShell";
-import { ProductGrid } from "@/src/components/ProductCard";
+import {
+  AccountCard,
+  AccountLoader,
+  AccountSectionTitle,
+  AccountShell,
+  StatusBadge,
+  accountInputClass,
+} from "@/src/components/AccountShell";
+import { ProductGrid, ProductSkeletonGrid } from "@/src/components/ProductCard";
 import { RequireAuth } from "@/src/components/RequireAuth";
 import { formatPhoneDisplay } from "@/src/lib/phone";
 import { customerApi } from "@/src/modules/auth/api";
 import { catalogApi } from "@/src/modules/catalog/api";
-import { formatMoney, orderStatusLabel, ordersApi } from "@/src/modules/orders/api";
+import { formatMoney, ordersApi } from "@/src/modules/orders/api";
 
 function formatWhen(iso: string) {
   try {
@@ -28,10 +35,11 @@ function AccountOverview() {
   const { user, logout, refreshMe } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [savedFlash, setSavedFlash] = useState(false);
 
   const profile = useQuery(() => customerApi.me(), [user?.id]);
   const orders = useQuery(() => ordersApi.list({ page: 1, page_size: 5 }), []);
-  const picks = useQuery(() => catalogApi.listProducts({ featured: true, page_size: 3 }), []);
+  const picks = useQuery(() => catalogApi.listProducts({ featured: true, page_size: 4 }), []);
 
   useEffect(() => {
     if (!profile.data) return;
@@ -53,174 +61,204 @@ function AccountOverview() {
     try {
       await save.mutate();
       await profile.refetch();
+      setSavedFlash(true);
+      window.setTimeout(() => setSavedFlash(false), 2500);
     } catch {
       /* toast */
     }
   }
 
   const firstName = user?.name?.split(" ")[0] || "there";
+  const orderCount = orders.data?.total ?? orders.data?.items.length ?? 0;
 
   return (
     <AccountShell
-      title={`Welcome, ${firstName}`}
-      subtitle="Manage profile, track orders, and save delivery addresses."
+      title={`Hi, ${firstName}`}
+      subtitle="Manage your profile, orders, and delivery addresses."
+      actions={
+        <Link href="/shop" className="fs-btn-primary !py-2.5">
+          Continue shopping
+        </Link>
+      }
     >
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { href: "/shop", title: "Shop fruit", body: "Browse the catalog" },
-          { href: "/account/orders", title: "Your orders", body: "Track & reorder" },
-          { href: "/cart", title: "Cart", body: "Ready to checkout?" },
-        ].map((card) => (
+      {/* Quick stats */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <AccountCard>
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-muted)]">
+            Orders
+          </p>
+          <p className="mt-2 text-3xl font-extrabold text-[var(--fs-ink)]">
+            {orders.isLoading ? "—" : orderCount}
+          </p>
           <Link
-            key={card.href}
-            href={card.href}
-            className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-sm transition hover:border-[var(--fs-leaf)]/35 hover:shadow-md"
+            href="/account/orders"
+            className="mt-2 inline-block text-sm font-bold text-[var(--fs-accent)] hover:underline"
           >
-            <p className="font-[family-name:var(--font-fraunces)] text-lg text-[var(--fs-ink)]">
-              {card.title}
-            </p>
-            <p className="mt-1 text-sm text-[var(--fs-muted)]">{card.body}</p>
+            View orders →
           </Link>
-        ))}
-      </div>
-
-      <section className="mt-6 rounded-2xl border border-[var(--fs-line)] bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--fs-line)] px-5 py-4">
-          <h2 className="font-[family-name:var(--font-fraunces)] text-xl text-[var(--fs-ink)]">
-            Recent orders
-          </h2>
-          <Link href="/account/orders" className="text-sm font-medium text-[var(--fs-leaf)] hover:underline">
-            View all
-          </Link>
-        </div>
-        {orders.isLoading && (
-          <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">Loading orders…</p>
-        )}
-        {orders.data && orders.data.items.length === 0 && (
-          <div className="px-5 py-10 text-center">
-            <p className="text-sm text-[var(--fs-muted)]">No orders yet.</p>
-            <Link
-              href="/shop"
-              className="mt-3 inline-block text-sm font-semibold text-[var(--fs-leaf)] hover:underline"
-            >
-              Start shopping →
+        </AccountCard>
+        <AccountCard>
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-muted)]">
+            Sign-in
+          </p>
+          <p className="mt-2 text-sm font-extrabold text-[var(--fs-ink)]">
+            {user?.phone
+              ? formatPhoneDisplay(user.phone)
+              : user?.email
+                ? user.email
+                : "OTP account"}
+          </p>
+          <p className="mt-1 text-xs font-medium text-[var(--fs-muted)]">
+            {user?.phone ? "Mobile OTP" : user?.email ? "Email OTP" : "Secure OTP login"}
+          </p>
+        </AccountCard>
+        <AccountCard>
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-muted)]">
+            Shortcuts
+          </p>
+          <div className="mt-3 flex flex-col gap-2 text-sm font-bold">
+            <Link href="/cart" className="text-[var(--fs-accent)] hover:underline">
+              Open cart →
+            </Link>
+            <Link href="/account/addresses" className="text-[var(--fs-accent)] hover:underline">
+              Addresses →
             </Link>
           </div>
-        )}
-        {orders.data && orders.data.items.length > 0 && (
-          <ul className="divide-y divide-[var(--fs-line)]">
-            {orders.data.items.map((order) => (
-              <li key={order.id}>
-                <Link
-                  href={`/account/orders/${order.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition hover:bg-[var(--fs-mist)]/40"
-                >
-                  <div>
-                    <p className="font-medium">{order.order_number}</p>
-                    <p className="text-sm text-[var(--fs-muted)]">
-                      {formatWhen(order.created_at)} · {order.items.length} items
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{formatMoney(order.total)}</p>
-                    <p className="text-xs capitalize text-[var(--fs-leaf)]">
-                      {orderStatusLabel(order.status)}
-                    </p>
-                  </div>
+        </AccountCard>
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-5">
+        {/* Recent orders */}
+        <div className="lg:col-span-3">
+          <AccountSectionTitle
+            title="Recent orders"
+            action={
+              <Link
+                href="/account/orders"
+                className="text-sm font-bold text-[var(--fs-accent)] hover:underline"
+              >
+                View all
+              </Link>
+            }
+          />
+          <AccountCard padded={false}>
+            {orders.isLoading && <AccountLoader label="Loading orders…" />}
+            {orders.data && orders.data.items.length === 0 && (
+              <div className="px-5 py-10 text-center">
+                <p className="font-extrabold text-[var(--fs-ink)]">No orders yet</p>
+                <p className="mt-1 text-sm text-[var(--fs-muted)]">Your fruit orders will show here.</p>
+                <Link href="/shop" className="fs-btn-primary mt-5 inline-flex !py-2.5">
+                  Start shopping
                 </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              </div>
+            )}
+            {orders.data && orders.data.items.length > 0 && (
+              <ul className="divide-y divide-[var(--fs-line)]">
+                {orders.data.items.map((order) => (
+                  <li key={order.id}>
+                    <Link
+                      href={`/account/orders/${order.id}`}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition hover:bg-[var(--fs-mist)]/50"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-[var(--fs-ink)]">{order.order_number}</p>
+                        <p className="mt-0.5 text-sm font-medium text-[var(--fs-muted)]">
+                          {formatWhen(order.created_at)} · {order.items.length} item
+                          {order.items.length === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <p className="font-extrabold">{formatMoney(order.total)}</p>
+                        <StatusBadge status={order.status} />
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AccountCard>
+        </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-5">
-        <form
-          onSubmit={onSave}
-          className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-sm sm:p-6 lg:col-span-3"
-        >
-          <h2 className="font-[family-name:var(--font-fraunces)] text-xl text-[var(--fs-ink)]">
-            Profile
-          </h2>
-          <p className="mt-1 text-sm text-[var(--fs-muted)]">
-            Update how we address you. Sign-in stays on your mobile or email OTP.
-          </p>
+        {/* Profile */}
+        <div className="lg:col-span-2">
+          <AccountSectionTitle title="Profile" />
+          <AccountCard>
+            {profile.isLoading ? (
+              <AccountLoader label="Loading profile…" />
+            ) : (
+              <form onSubmit={onSave}>
+                <label className="block text-sm">
+                  <span className="font-bold text-[var(--fs-ink)]">Name</span>
+                  <input
+                    className={accountInputClass}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="mt-4 block text-sm">
+                  <span className="font-bold text-[var(--fs-ink)]">Email (optional)</span>
+                  <input
+                    type="email"
+                    className={accountInputClass}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </label>
+                <p className="mt-3 text-xs font-medium text-[var(--fs-muted)]">
+                  Sign-in stays on your mobile or email OTP — no password.
+                </p>
+                {savedFlash && (
+                  <p className="mt-3 text-sm font-bold text-[var(--fs-accent-deep)]">
+                    Profile saved.
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={save.isLoading}
+                  className="fs-btn-primary mt-5 w-full !py-3"
+                >
+                  {save.isLoading ? "Saving…" : "Save changes"}
+                </button>
+              </form>
+            )}
+          </AccountCard>
 
-          <label className="mt-5 block text-sm">
-            <span className="font-medium text-stone-700">Name</span>
-            <input
-              className="mt-1.5 w-full rounded-xl border border-[var(--fs-line)] px-3.5 py-2.5 outline-none focus:border-[var(--fs-leaf)] focus:ring-2 focus:ring-[var(--fs-leaf)]/15"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </label>
-
-          <label className="mt-4 block text-sm">
-            <span className="font-medium text-stone-700">Email (optional)</span>
-            <input
-              type="email"
-              className="mt-1.5 w-full rounded-xl border border-[var(--fs-line)] px-3.5 py-2.5 outline-none focus:border-[var(--fs-leaf)] focus:ring-2 focus:ring-[var(--fs-leaf)]/15"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={save.isLoading}
-            className="mt-5 rounded-xl bg-[var(--fs-leaf-deep)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--fs-leaf)] disabled:opacity-60"
-          >
-            {save.isLoading ? "Saving…" : "Save profile"}
-          </button>
-        </form>
-
-        <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-sm">
-            <h2 className="font-medium text-[var(--fs-ink)]">Sign-in</h2>
-            <p className="mt-2 text-sm text-[var(--fs-muted)]">
-              {user?.phone
-                ? `Mobile OTP · ${formatPhoneDisplay(user.phone)}`
-                : user?.email
-                  ? `Email OTP · ${user.email}`
-                  : "OTP sign-in"}
-            </p>
+          <div className="mt-4 space-y-2">
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="w-full rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50"
+            >
+              Sign out
+            </button>
+            <button
+              type="button"
+              onClick={() => void logout({ allSessions: true })}
+              className="w-full rounded-xl border border-[var(--fs-line)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
+            >
+              Sign out everywhere
+            </button>
           </div>
-          <Link
-            href="/account/addresses"
-            className="block rounded-2xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/60 p-5 transition hover:border-[var(--fs-leaf)]/30"
-          >
-            <p className="font-medium text-[var(--fs-ink)]">Saved addresses</p>
-            <p className="mt-1 text-sm text-[var(--fs-muted)]">Manage delivery locations →</p>
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              void logout();
-            }}
-            className="w-full rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-700 hover:bg-rose-50"
-          >
-            Sign out
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void logout({ allSessions: true });
-            }}
-            className="w-full rounded-xl border border-[var(--fs-line)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
-          >
-            Sign out everywhere
-          </button>
         </div>
       </div>
 
-      {(picks.data?.items.length ?? 0) > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-5 font-[family-name:var(--font-fraunces)] text-2xl tracking-tight">
-            Picked for you
-          </h2>
-          <ProductGrid products={picks.data!.items} />
+      {(picks.isLoading || (picks.data?.items.length ?? 0) > 0) && (
+        <section className="mt-10">
+          <AccountSectionTitle
+            title="Picked for you"
+            action={
+              <Link href="/shop?featured=1" className="text-sm font-bold text-[var(--fs-accent)] hover:underline">
+                See more →
+              </Link>
+            }
+          />
+          {picks.isLoading ? (
+            <ProductSkeletonGrid count={4} />
+          ) : (
+            <ProductGrid products={picks.data!.items} />
+          )}
         </section>
       )}
     </AccountShell>

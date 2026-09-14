@@ -19,6 +19,51 @@ import {
   type CouponValidateResponse,
 } from "@/src/modules/coupons/api";
 
+const inputClass =
+  "w-full rounded-xl border border-[var(--fs-line)] bg-white px-3.5 py-2.5 text-sm font-medium outline-none transition focus:border-[var(--fs-accent)] focus:ring-2 focus:ring-[var(--fs-accent)]/15";
+
+function CheckoutSkeleton() {
+  return (
+    <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]" role="status" aria-label="Loading checkout">
+      <div className="space-y-5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-[var(--fs-line)] bg-white p-5">
+            <div className="fs-skeleton h-5 w-40" />
+            <div className="mt-4 space-y-3">
+              <div className="fs-skeleton h-16 w-full !rounded-xl" />
+              <div className="fs-skeleton h-16 w-full !rounded-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="h-fit rounded-2xl border border-[var(--fs-line)] bg-white p-5">
+        <div className="fs-skeleton h-6 w-36" />
+        <div className="mt-4 space-y-3">
+          <div className="fs-skeleton h-4 w-full" />
+          <div className="fs-skeleton h-4 w-full" />
+          <div className="fs-skeleton h-4 w-3/4" />
+        </div>
+        <div className="mt-5 space-y-2 border-t border-[var(--fs-line)] pt-4">
+          <div className="fs-skeleton h-4 w-full" />
+          <div className="fs-skeleton h-4 w-full" />
+          <div className="fs-skeleton h-5 w-full" />
+        </div>
+        <div className="fs-skeleton mt-6 h-12 w-full !rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+function CouponOfferSkeleton() {
+  return (
+    <div className="mt-4 space-y-2" role="status" aria-label="Loading offers">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="fs-skeleton h-24 w-full !rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { isAuthenticated, bootstrapping } = useAuth();
@@ -98,7 +143,11 @@ export default function CheckoutPage() {
   if (bootstrapping) {
     return (
       <StoreShell>
-        <p className="p-8 text-sm text-[var(--fs-muted)]">Loading…</p>
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+          <div className="fs-skeleton h-4 w-20" />
+          <div className="fs-skeleton mt-3 h-9 w-48" />
+          <CheckoutSkeleton />
+        </div>
       </StoreShell>
     );
   }
@@ -107,12 +156,12 @@ export default function CheckoutPage() {
     return (
       <StoreShell>
         <div className="mx-auto max-w-lg px-4 py-20 text-center">
-          <h1 className="font-[family-name:var(--font-fraunces)] text-3xl">Checkout</h1>
-          <p className="mt-2 text-sm text-[var(--fs-muted)]">Sign in to complete your order.</p>
-          <Link
-            href="/login?next=/checkout"
-            className="mt-6 inline-block rounded-full bg-[var(--fs-leaf-deep)] px-6 py-3 text-sm font-semibold text-white"
-          >
+          <p className="fs-eyebrow">Checkout</p>
+          <h1 className="fs-section-title mt-2 text-3xl">Sign in to order</h1>
+          <p className="mt-3 text-sm font-medium text-[var(--fs-muted)]">
+            Complete your fruit order securely with OTP login.
+          </p>
+          <Link href="/login?next=/checkout" className="fs-btn-primary mt-8 inline-flex">
             Sign in
           </Link>
         </div>
@@ -121,10 +170,21 @@ export default function CheckoutPage() {
   }
 
   const empty = cart.data && cart.data.items.length === 0;
+  const summarySubtotal = appliedCoupon?.valid ? appliedCoupon.subtotal : cart.data?.subtotal;
+  const summaryTax = appliedCoupon?.valid ? appliedCoupon.tax_amount : cart.data?.tax_amount;
+  const summaryShipping = appliedCoupon?.valid
+    ? appliedCoupon.shipping_amount
+    : cart.data?.shipping_amount;
+  const summaryTotal = appliedCoupon?.valid ? appliedCoupon.total : cart.data?.total;
 
   async function onAddAddress(e?: FormEvent) {
     e?.preventDefault();
-    if (!newAddress.line1.trim() || !newAddress.city.trim() || !newAddress.state.trim() || !newAddress.postal_code.trim()) {
+    if (
+      !newAddress.line1.trim() ||
+      !newAddress.city.trim() ||
+      !newAddress.state.trim() ||
+      !newAddress.postal_code.trim()
+    ) {
       return;
     }
     try {
@@ -153,47 +213,73 @@ export default function CheckoutPage() {
 
   return (
     <StoreShell>
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <nav className="text-sm text-[var(--fs-muted)]">
-          <Link href="/cart" className="hover:text-[var(--fs-leaf)]">
-            ← Cart
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+        <nav className="text-sm font-bold text-[var(--fs-muted)]">
+          <Link href="/cart" className="hover:text-[var(--fs-accent)]">
+            ← Back to cart
           </Link>
         </nav>
-        <h1 className="mt-4 font-[family-name:var(--font-fraunces)] text-3xl tracking-tight sm:text-4xl">
-          Checkout
-        </h1>
+        <p className="fs-eyebrow mt-4">Checkout</p>
+        <h1 className="fs-section-title mt-1 text-3xl sm:text-4xl">Order summary</h1>
+        <p className="mt-2 text-sm font-medium text-[var(--fs-muted)]">
+          Confirm delivery, apply offers, and place your order.
+        </p>
 
-        {cart.isLoading && <p className="mt-8 text-sm text-[var(--fs-muted)]">Loading…</p>}
+        {cart.isLoading && <CheckoutSkeleton />}
+
         {empty && (
-          <div className="mt-12 text-center">
-            <p className="text-[var(--fs-muted)]">Your cart is empty.</p>
-            <Link href="/shop" className="mt-4 inline-block text-[var(--fs-leaf)] hover:underline">
-              Go shopping →
+          <div className="mt-10 rounded-2xl border border-dashed border-[var(--fs-line)] bg-white px-6 py-16 text-center shadow-[var(--fs-shadow-sm)]">
+            <p className="text-xl font-extrabold text-[var(--fs-ink)]">Your cart is empty</p>
+            <p className="mt-2 text-sm font-medium text-[var(--fs-muted)]">
+              Add fruit before checking out.
+            </p>
+            <Link href="/shop" className="fs-btn-primary mt-6 inline-flex">
+              Go shopping
             </Link>
           </div>
         )}
 
         {cart.data && cart.data.items.length > 0 && (
-          <form onSubmit={onPlaceOrder} className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
-            <div className="space-y-6">
-              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
-                <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Delivery address</h2>
+          <form onSubmit={onPlaceOrder} className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+            <div className="space-y-5">
+              {/* Address */}
+              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-[var(--fs-shadow-sm)] sm:p-6">
+                <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Delivery address</h2>
+                {addresses.isLoading && (
+                  <div className="mt-4 space-y-2">
+                    <div className="fs-skeleton h-20 w-full !rounded-xl" />
+                    <div className="fs-skeleton h-20 w-full !rounded-xl" />
+                  </div>
+                )}
                 {(addresses.data?.length ?? 0) > 0 && (
                   <ul className="mt-4 space-y-2">
                     {addresses.data!.map((a) => (
                       <li key={a.id}>
-                        <label className="flex cursor-pointer gap-3 rounded-xl border border-[var(--fs-line)] p-4 transition has-[:checked]:border-[var(--fs-leaf)] has-[:checked]:bg-[var(--fs-mist)]/50">
+                        <label
+                          className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition ${
+                            addressId === a.id
+                              ? "border-[var(--fs-accent)] bg-[var(--fs-mist)]/60"
+                              : "border-[var(--fs-line)] hover:border-[var(--fs-accent)]/40"
+                          }`}
+                        >
                           <input
                             type="radio"
                             name="address"
                             value={a.id}
                             checked={addressId === a.id}
                             onChange={() => setAddressId(a.id)}
-                            className="mt-1"
+                            className="mt-1 accent-[var(--fs-accent)]"
                           />
                           <span className="text-sm">
-                            <span className="font-medium capitalize">{a.label}</span>
-                            <span className="mt-1 block whitespace-pre-line text-[var(--fs-muted)]">
+                            <span className="font-extrabold capitalize text-[var(--fs-ink)]">
+                              {a.label}
+                              {a.is_default ? (
+                                <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--fs-accent-deep)] ring-1 ring-[var(--fs-line)]">
+                                  Default
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="mt-1 block whitespace-pre-line font-medium text-[var(--fs-muted)]">
                               {[a.line1, a.line2, `${a.city}, ${a.state} ${a.postal_code}`]
                                 .filter(Boolean)
                                 .join("\n")}
@@ -204,63 +290,77 @@ export default function CheckoutPage() {
                     ))}
                   </ul>
                 )}
+                {!addresses.isLoading && (addresses.data?.length ?? 0) === 0 && !showNewAddress && (
+                  <p className="mt-3 text-sm font-medium text-[var(--fs-muted)]">
+                    Add an address to continue.
+                  </p>
+                )}
                 {!showNewAddress ? (
                   <button
                     type="button"
-                    className="mt-4 text-sm font-medium text-[var(--fs-leaf)] hover:underline"
+                    className="mt-4 text-sm font-bold text-[var(--fs-accent)] hover:underline"
                     onClick={() => setShowNewAddress(true)}
                   >
                     + Add new address
                   </button>
                 ) : (
-                  <div className="mt-4 rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/30 p-4 space-y-3">
+                  <div className="mt-4 space-y-3 rounded-xl border border-[var(--fs-line)] bg-[var(--fs-canvas)] p-4">
+                    <select
+                      className={inputClass}
+                      value={newAddress.label}
+                      onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
+                    >
+                      <option value="home">Home</option>
+                      <option value="work">Work</option>
+                      <option value="other">Other</option>
+                    </select>
                     <input
-                      className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm"
+                      className={inputClass}
                       placeholder="Address line 1"
                       value={newAddress.line1}
                       onChange={(e) => setNewAddress({ ...newAddress, line1: e.target.value })}
                       required={showNewAddress}
                     />
                     <input
-                      className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm"
+                      className={inputClass}
                       placeholder="Address line 2 (optional)"
                       value={newAddress.line2}
                       onChange={(e) => setNewAddress({ ...newAddress, line2: e.target.value })}
                     />
                     <div className="grid gap-3 sm:grid-cols-2">
                       <input
-                        className="rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm"
+                        className={inputClass}
                         placeholder="City"
                         value={newAddress.city}
                         onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                       />
                       <input
-                        className="rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm"
+                        className={inputClass}
                         placeholder="State"
                         value={newAddress.state}
                         onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
                       />
                     </div>
                     <input
-                      className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm"
+                      className={inputClass}
                       placeholder="Postal code"
                       value={newAddress.postal_code}
                       onChange={(e) =>
                         setNewAddress({ ...newAddress, postal_code: e.target.value })
                       }
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         disabled={addAddress.isLoading}
-                        className="rounded-full bg-[var(--fs-leaf-deep)] px-4 py-2 text-sm font-semibold text-white"
+                        className="fs-btn-primary !py-2.5"
                         onClick={onAddAddress}
                       >
-                        Save address
+                        {addAddress.isLoading ? "Saving…" : "Save address"}
                       </button>
                       <button
                         type="button"
-                        className="rounded-full px-4 py-2 text-sm text-[var(--fs-muted)]"
+                        className="rounded-full px-4 py-2.5 text-sm font-bold text-[var(--fs-muted)] hover:bg-white"
                         onClick={() => setShowNewAddress(false)}
                       >
                         Cancel
@@ -270,15 +370,15 @@ export default function CheckoutPage() {
                 )}
               </section>
 
-              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
-                <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Coupon</h2>
-                <p className="mt-1 text-xs text-[var(--fs-muted)]">
+              {/* Coupons */}
+              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-[var(--fs-shadow-sm)] sm:p-6">
+                <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Coupon</h2>
+                <p className="mt-1 text-xs font-medium text-[var(--fs-muted)]">
                   Pick an available offer or enter a code
                 </p>
 
-                {availableCoupons.isLoading && (
-                  <p className="mt-4 text-sm text-[var(--fs-muted)]">Loading offers…</p>
-                )}
+                {availableCoupons.isLoading && <CouponOfferSkeleton />}
+
                 {availableCoupons.data && availableCoupons.data.items.length > 0 && (
                   <ul className="mt-4 space-y-2">
                     {availableCoupons.data.items.map((offer) => {
@@ -288,40 +388,40 @@ export default function CheckoutPage() {
                       return (
                         <li
                           key={offer.code}
-                          className={`rounded-xl border p-3 transition ${
+                          className={`rounded-xl border p-3.5 transition ${
                             selected
-                              ? "border-[var(--fs-leaf)] bg-[var(--fs-mist)]/60"
-                              : "border-[var(--fs-line)] bg-[var(--fs-mist)]/20"
+                              ? "border-[var(--fs-accent)] bg-[var(--fs-mist)]/70"
+                              : "border-[var(--fs-line)] bg-[var(--fs-canvas)]"
                           }`}
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="font-mono text-sm font-semibold tracking-wide text-[var(--fs-leaf-deep)]">
+                              <p className="font-mono text-sm font-extrabold tracking-wide text-[var(--fs-accent-deep)]">
                                 {offer.code}
                               </p>
-                              <p className="mt-0.5 text-sm font-medium text-[var(--fs-ink)]">
+                              <p className="mt-0.5 text-sm font-bold text-[var(--fs-ink)]">
                                 {offer.name}
-                                <span className="ml-2 text-xs font-normal text-[var(--fs-muted)]">
+                                <span className="ml-2 text-xs font-semibold text-[var(--fs-muted)]">
                                   {couponOfferLabel(offer)}
                                 </span>
                               </p>
                               {offer.description && (
-                                <p className="mt-1 text-xs text-[var(--fs-muted)]">
+                                <p className="mt-1 text-xs font-medium text-[var(--fs-muted)]">
                                   {offer.description}
                                 </p>
                               )}
                               {offer.applicable ? (
                                 Number(offer.estimated_discount) > 0 ? (
-                                  <p className="mt-1 text-xs text-[var(--fs-leaf-deep)]">
+                                  <p className="mt-1 text-xs font-bold text-[var(--fs-accent-deep)]">
                                     Save {formatMoney(offer.estimated_discount)} on this cart
                                   </p>
                                 ) : offer.discount_type === "free_shipping" ? (
-                                  <p className="mt-1 text-xs text-[var(--fs-leaf-deep)]">
+                                  <p className="mt-1 text-xs font-bold text-[var(--fs-accent-deep)]">
                                     Free shipping on this cart
                                   </p>
                                 ) : null
                               ) : (
-                                <p className="mt-1 text-xs text-amber-700">
+                                <p className="mt-1 text-xs font-bold text-amber-700">
                                   {offer.reason || "Not available for this cart"}
                                 </p>
                               )}
@@ -331,7 +431,7 @@ export default function CheckoutPage() {
                               disabled={
                                 !offer.applicable || applyCoupon.isLoading || Boolean(selected)
                               }
-                              className="shrink-0 rounded-full bg-[var(--fs-leaf-deep)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--fs-leaf)] disabled:opacity-40"
+                              className="shrink-0 rounded-full bg-[var(--fs-accent)] px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-[var(--fs-accent-deep)] disabled:opacity-40"
                               onClick={async () => {
                                 try {
                                   await applyCoupon.mutate(offer.code);
@@ -350,15 +450,16 @@ export default function CheckoutPage() {
                     })}
                   </ul>
                 )}
+
                 {availableCoupons.data && availableCoupons.data.items.length === 0 && (
-                  <p className="mt-4 text-sm text-[var(--fs-muted)]">
+                  <p className="mt-4 text-sm font-medium text-[var(--fs-muted)]">
                     No public offers right now — you can still enter a code below.
                   </p>
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <input
-                    className="min-w-[160px] flex-1 rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm uppercase outline-none focus:border-[var(--fs-leaf)]"
+                    className={`${inputClass} min-w-[160px] flex-1 uppercase`}
                     placeholder="Have a code?"
                     value={couponInput}
                     onChange={(e) => {
@@ -369,7 +470,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     disabled={applyCoupon.isLoading || !couponInput.trim()}
-                    className="rounded-full bg-[var(--fs-mist)] px-4 py-2 text-sm font-medium text-[var(--fs-leaf-deep)] hover:bg-[var(--fs-leaf)]/15 disabled:opacity-50"
+                    className="rounded-full bg-[var(--fs-mist)] px-4 py-2.5 text-sm font-bold text-[var(--fs-accent-deep)] hover:bg-[#ffe0c8] disabled:opacity-50"
                     onClick={async () => {
                       try {
                         await applyCoupon.mutate(couponInput.trim());
@@ -385,7 +486,7 @@ export default function CheckoutPage() {
                   {appliedCoupon?.valid && (
                     <button
                       type="button"
-                      className="rounded-full px-3 py-2 text-sm text-[var(--fs-muted)] hover:text-rose-600"
+                      className="rounded-full px-3 py-2.5 text-sm font-bold text-[var(--fs-muted)] hover:text-rose-600"
                       onClick={() => {
                         setAppliedCoupon(null);
                         setCouponInput("");
@@ -397,27 +498,42 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 {appliedCoupon?.valid && (
-                  <p className="mt-2 text-sm text-[var(--fs-leaf-deep)]">
+                  <p className="mt-3 text-sm font-bold text-[var(--fs-accent-deep)]">
                     {appliedCoupon.code} applied — you save{" "}
                     {formatMoney(appliedCoupon.discount_amount)}
                     {appliedCoupon.discount_type === "free_shipping" ? " (free shipping)" : ""}
                   </p>
                 )}
-                {couponError && <p className="mt-2 text-sm text-rose-600">{couponError}</p>}
+                {couponError && (
+                  <p className="mt-2 text-sm font-semibold text-rose-600">{couponError}</p>
+                )}
               </section>
 
-              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
-                <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Payment</h2>
+              {/* Payment */}
+              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-[var(--fs-shadow-sm)] sm:p-6">
+                <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Payment</h2>
                 <div className="mt-4 space-y-2">
                   {(
                     [
-                      { value: "cod" as const, label: "Cash on delivery", hint: "Pay when fruit arrives" },
-                      { value: "online" as const, label: "Pay online", hint: "Demo — auto-confirms" },
+                      {
+                        value: "cod" as const,
+                        label: "Cash on delivery",
+                        hint: "Pay when fruit arrives",
+                      },
+                      {
+                        value: "online" as const,
+                        label: "Pay online",
+                        hint: "Demo — auto-confirms",
+                      },
                     ] as const
                   ).map((opt) => (
                     <label
                       key={opt.value}
-                      className="flex cursor-pointer gap-3 rounded-xl border border-[var(--fs-line)] p-4 transition has-[:checked]:border-[var(--fs-leaf)] has-[:checked]:bg-[var(--fs-mist)]/50"
+                      className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition ${
+                        paymentMethod === opt.value
+                          ? "border-[var(--fs-accent)] bg-[var(--fs-mist)]/60"
+                          : "border-[var(--fs-line)] hover:border-[var(--fs-accent)]/40"
+                      }`}
                     >
                       <input
                         type="radio"
@@ -425,23 +541,30 @@ export default function CheckoutPage() {
                         value={opt.value}
                         checked={paymentMethod === opt.value}
                         onChange={() => setPaymentMethod(opt.value)}
-                        className="mt-1"
+                        className="mt-1 accent-[var(--fs-accent)]"
                       />
                       <span>
-                        <span className="text-sm font-medium">{opt.label}</span>
-                        <span className="block text-xs text-[var(--fs-muted)]">{opt.hint}</span>
+                        <span className="text-sm font-extrabold text-[var(--fs-ink)]">
+                          {opt.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-medium text-[var(--fs-muted)]">
+                          {opt.hint}
+                        </span>
                       </span>
                     </label>
                   ))}
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 sm:p-6">
-                <label className="block text-sm">
-                  <span className="font-[family-name:var(--font-fraunces)] text-xl">Order notes</span>
-                  <span className="mt-1 block text-xs text-[var(--fs-muted)]">Optional delivery instructions</span>
+              {/* Notes */}
+              <section className="rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-[var(--fs-shadow-sm)] sm:p-6">
+                <label className="block">
+                  <span className="text-lg font-extrabold text-[var(--fs-ink)]">Order notes</span>
+                  <span className="mt-1 block text-xs font-medium text-[var(--fs-muted)]">
+                    Optional delivery instructions
+                  </span>
                   <textarea
-                    className="mt-3 w-full rounded-xl border border-[var(--fs-line)] px-3 py-2 text-sm outline-none focus:border-[var(--fs-leaf)]"
+                    className={`${inputClass} mt-3`}
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -451,69 +574,80 @@ export default function CheckoutPage() {
               </section>
             </div>
 
-            <aside className="h-fit rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-sm">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-xl">Order summary</h2>
-              <ul className="mt-4 space-y-3 border-b border-[var(--fs-line)] pb-4 text-sm">
+            {/* Order summary sidebar */}
+            <aside className="h-fit rounded-2xl border border-[var(--fs-line)] bg-white p-5 shadow-[var(--fs-shadow-sm)] lg:sticky lg:top-24">
+              <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Order summary</h2>
+              <ul className="mt-4 space-y-3 border-b border-[var(--fs-line)] pb-4">
                 {cart.data.items.map((item) => (
-                  <li key={item.id} className="flex justify-between gap-2">
-                    <span className="text-[var(--fs-muted)]">
-                      {item.quantity}× {item.product_name}
+                  <li key={item.id} className="flex gap-3 text-sm">
+                    <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-[var(--fs-mist)]">
+                      {item.primary_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.primary_image_url}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[var(--fs-ink)] line-clamp-1">
+                        {item.product_name}
+                      </p>
+                      <p className="text-xs font-medium text-[var(--fs-muted)]">
+                        {item.quantity} × {formatMoney(item.unit_price)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-extrabold">
+                      {formatMoney(item.line_subtotal)}
                     </span>
-                    <span>{formatMoney(item.line_subtotal)}</span>
                   </li>
                 ))}
               </ul>
-              <dl className="mt-4 space-y-2 text-sm">
+              <dl className="mt-4 space-y-2.5 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-[var(--fs-muted)]">Subtotal</dt>
-                  <dd>
-                    {formatMoney(appliedCoupon?.valid ? appliedCoupon.subtotal : cart.data.subtotal)}
-                  </dd>
+                  <dt className="font-medium text-[var(--fs-muted)]">Subtotal</dt>
+                  <dd className="font-semibold">{formatMoney(summarySubtotal)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[var(--fs-muted)]">Tax</dt>
-                  <dd>
-                    {formatMoney(
-                      appliedCoupon?.valid ? appliedCoupon.tax_amount : cart.data.tax_amount,
-                    )}
-                  </dd>
+                  <dt className="font-medium text-[var(--fs-muted)]">Tax</dt>
+                  <dd className="font-semibold">{formatMoney(summaryTax)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[var(--fs-muted)]">Shipping</dt>
-                  <dd>
-                    {Number(
-                      appliedCoupon?.valid
-                        ? appliedCoupon.shipping_amount
-                        : cart.data.shipping_amount,
-                    ) === 0
-                      ? "Free"
-                      : formatMoney(
-                          appliedCoupon?.valid
-                            ? appliedCoupon.shipping_amount
-                            : cart.data.shipping_amount,
-                        )}
+                  <dt className="font-medium text-[var(--fs-muted)]">Shipping</dt>
+                  <dd className="font-semibold">
+                    {Number(summaryShipping) === 0 ? "Free" : formatMoney(summaryShipping)}
                   </dd>
                 </div>
                 {appliedCoupon?.valid && Number(appliedCoupon.discount_amount) > 0 && (
-                  <div className="flex justify-between text-[var(--fs-leaf-deep)]">
-                    <dt>Discount ({appliedCoupon.code})</dt>
-                    <dd>−{formatMoney(appliedCoupon.discount_amount)}</dd>
+                  <div className="flex justify-between text-[var(--fs-accent-deep)]">
+                    <dt className="font-medium">Discount ({appliedCoupon.code})</dt>
+                    <dd className="font-semibold">−{formatMoney(appliedCoupon.discount_amount)}</dd>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-[var(--fs-line)] pt-2 font-semibold">
+                <div className="flex justify-between border-t border-[var(--fs-line)] pt-2.5 text-base font-extrabold">
                   <dt>Total</dt>
-                  <dd>
-                    {formatMoney(appliedCoupon?.valid ? appliedCoupon.total : cart.data.total)}
-                  </dd>
+                  <dd>{formatMoney(summaryTotal)}</dd>
                 </div>
               </dl>
+              {!addressId && (
+                <p className="mt-3 text-xs font-bold text-amber-700">
+                  Select or add a delivery address to place your order.
+                </p>
+              )}
               <button
                 type="submit"
                 disabled={!addressId || checkout.isLoading}
-                className="mt-5 w-full rounded-full bg-[var(--fs-mango)] py-3 text-sm font-semibold text-[var(--fs-orchard)] hover:bg-[var(--fs-citrus)] disabled:opacity-50"
+                className="fs-btn-primary mt-5 w-full disabled:opacity-50"
               >
                 {checkout.isLoading ? "Placing order…" : "Place order"}
               </button>
+              <Link
+                href="/cart"
+                className="mt-3 block text-center text-sm font-bold text-[var(--fs-accent)] hover:underline"
+              >
+                Edit cart
+              </Link>
             </aside>
           </form>
         )}

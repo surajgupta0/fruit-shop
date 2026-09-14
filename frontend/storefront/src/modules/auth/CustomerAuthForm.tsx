@@ -17,6 +17,9 @@ type Props = {
 
 const RESEND_SECONDS = 30;
 
+const inputClass =
+  "w-full rounded-xl border border-[var(--fs-line)] bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-stone-400 focus:border-[var(--fs-accent)] focus:ring-2 focus:ring-[var(--fs-accent)]/20";
+
 export function CustomerAuthForm({ mode }: Props) {
   const {
     requestOtp,
@@ -135,40 +138,34 @@ export function CustomerAuthForm({ mode }: Props) {
   }
 
   const isSignup = mode === "signup";
-  const headline = isSignup ? "Join Fruit Shop" : "Welcome back";
-  const sub = isSignup
-    ? "Sign up with your mobile or email — we’ll send a one-time code."
-    : "Sign in with mobile OTP or email code — no password needed.";
-
   const destinationLabel =
     channel === "phone" ? formatPhoneDisplay(phone) : normalizeEmail(email);
+  const qs = search.toString() ? `?${search.toString()}` : "";
 
   if (bootstrapping) {
     return (
-      <div className="grid min-h-dvh place-items-center text-sm text-[var(--fs-muted)]">
-        Loading…
+      <div className="grid min-h-dvh place-items-center bg-[var(--fs-canvas)]">
+        <div className="flex items-center gap-3 text-sm font-semibold text-[var(--fs-muted)]">
+          <span className="size-5 animate-spin rounded-full border-2 border-[var(--fs-mist)] border-t-[var(--fs-accent)]" />
+          Loading…
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-dvh overflow-hidden">
+    <div className="min-h-dvh bg-[var(--fs-canvas)]">
+      {/* Soft top wash */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(1100px_560px_at_0%_0%,rgba(47,143,78,0.45),transparent),radial-gradient(800px_480px_at_100%_15%,rgba(244,162,97,0.35),transparent),linear-gradient(155deg,#0c2e1c_0%,#14532d_48%,#0f3d24_100%)]"
-      />
-      <div
-        aria-hidden
-        className="fs-drift pointer-events-none absolute bottom-8 left-[20%] h-64 w-64 rounded-full bg-white/10 blur-3xl"
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[var(--fs-mist)] to-transparent"
       />
 
-      <main className="relative z-10 mx-auto grid min-h-dvh max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <section className="fs-rise text-white">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2.5 text-white/90 transition hover:text-white"
-          >
-            <span className="fs-brand-mark grid size-10 place-items-center rounded-xl">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10 sm:px-6">
+        {/* Brand */}
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <span className="fs-brand-mark grid size-11 place-items-center rounded-2xl text-white">
               <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden>
                 <path
                   d="M12 3c.4 1.6 1.4 2.6 3 3-1.2.2-2.2.8-2.8 1.8C11.4 6.8 10.2 5.6 8.5 5c1.5-.2 2.8-1 3.5-2z"
@@ -177,35 +174,28 @@ export function CustomerAuthForm({ mode }: Props) {
                 <ellipse cx="12" cy="14.5" rx="6.5" ry="7" />
               </svg>
             </span>
-            <span className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight">
+            <span className="text-xl font-extrabold tracking-tight text-[var(--fs-ink)]">
               Fruit Shop
             </span>
           </Link>
-          <h1 className="mt-8 max-w-md font-[family-name:var(--font-fraunces)] text-3xl leading-snug sm:text-4xl">
-            {headline}
-          </h1>
-          <p className="mt-4 max-w-md text-sm text-white/70 sm:text-base">{sub}</p>
-          <ul className="mt-8 space-y-2 text-sm text-white/55">
-            <li>Mobile OTP or email verification code</li>
-            <li>Same account whether you use phone or email</li>
-            <li>Your orders stay linked to your profile</li>
-          </ul>
-        </section>
+        </div>
 
-        <section className="fs-rise-delay mx-auto w-full max-w-md">
+        {/* Auth card */}
+        <div className="rounded-3xl border border-[var(--fs-line)] bg-white p-6 shadow-[var(--fs-shadow-sm)] sm:p-8">
           {step === "identifier" ? (
-            <form
-              onSubmit={onSendOtp}
-              className="rounded-3xl border border-white/20 bg-white/95 p-7 shadow-[0_24px_60px_rgba(0,0,0,0.28)] backdrop-blur"
-              noValidate
-            >
-              <h2 className="font-[family-name:var(--font-fraunces)] text-2xl text-[var(--fs-ink)]">
-                {isSignup ? "Sign up" : "Sign in"}
-              </h2>
-              <p className="mt-1 text-sm text-[var(--fs-muted)]">Choose how you want to verify</p>
+            <form onSubmit={onSendOtp} noValidate>
+              <h1 className="text-2xl font-extrabold tracking-tight text-[var(--fs-ink)]">
+                {isSignup ? "Create account" : "Sign in"}
+              </h1>
+              <p className="mt-1.5 text-sm font-medium text-[var(--fs-muted)]">
+                {isSignup
+                  ? "Verify with mobile or email — no password needed."
+                  : "Use your mobile or email. We’ll send a one-time code."}
+              </p>
 
+              {/* Method tabs */}
               <div
-                className="mt-5 grid grid-cols-2 gap-1 rounded-xl bg-[var(--fs-mist)] p-1"
+                className="mt-6 grid grid-cols-2 gap-1 rounded-2xl bg-[var(--fs-mist)] p-1"
                 role="tablist"
                 aria-label="Sign-in method"
               >
@@ -213,7 +203,7 @@ export function CustomerAuthForm({ mode }: Props) {
                   type="button"
                   role="tab"
                   aria-selected={channel === "phone"}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${
                     channel === "phone"
                       ? "bg-white text-[var(--fs-ink)] shadow-sm"
                       : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
@@ -226,7 +216,7 @@ export function CustomerAuthForm({ mode }: Props) {
                   type="button"
                   role="tab"
                   aria-selected={channel === "email"}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${
                     channel === "email"
                       ? "bg-white text-[var(--fs-ink)] shadow-sm"
                       : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
@@ -238,14 +228,14 @@ export function CustomerAuthForm({ mode }: Props) {
               </div>
 
               {isSignup && (
-                <label className="mt-6 block space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Your name</span>
+                <label className="mt-5 block space-y-1.5 text-sm">
+                  <span className="font-bold text-[var(--fs-ink)]">Your name</span>
                   <input
-                    className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                    className={inputClass}
                     type="text"
                     name="name"
                     autoComplete="name"
-                    placeholder="How should we greet you?"
+                    placeholder="Full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -254,10 +244,10 @@ export function CustomerAuthForm({ mode }: Props) {
               )}
 
               {channel === "phone" ? (
-                <label className={`block space-y-1.5 text-sm ${isSignup ? "mt-4" : "mt-6"}`}>
-                  <span className="font-medium text-stone-700">Phone number</span>
+                <label className={`block space-y-1.5 text-sm ${isSignup ? "mt-4" : "mt-5"}`}>
+                  <span className="font-bold text-[var(--fs-ink)]">Phone number</span>
                   <input
-                    className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                    className={inputClass}
                     type="tel"
                     name="phone"
                     autoComplete="tel"
@@ -270,18 +260,18 @@ export function CustomerAuthForm({ mode }: Props) {
                     required
                   />
                   {fieldError ? (
-                    <span className="block text-xs text-rose-600">{fieldError}</span>
+                    <span className="block text-xs font-semibold text-rose-600">{fieldError}</span>
                   ) : (
-                    <span className="block text-xs text-[var(--fs-muted)]">
-                      We’ll send a 6-digit code by SMS
+                    <span className="block text-xs font-medium text-[var(--fs-muted)]">
+                      We’ll send a 6-digit OTP by SMS
                     </span>
                   )}
                 </label>
               ) : (
-                <label className={`block space-y-1.5 text-sm ${isSignup ? "mt-4" : "mt-6"}`}>
-                  <span className="font-medium text-stone-700">Email address</span>
+                <label className={`block space-y-1.5 text-sm ${isSignup ? "mt-4" : "mt-5"}`}>
+                  <span className="font-bold text-[var(--fs-ink)]">Email address</span>
                   <input
-                    className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                    className={inputClass}
                     type="email"
                     name="email"
                     autoComplete="email"
@@ -294,69 +284,62 @@ export function CustomerAuthForm({ mode }: Props) {
                     required
                   />
                   {fieldError ? (
-                    <span className="block text-xs text-rose-600">{fieldError}</span>
+                    <span className="block text-xs font-semibold text-rose-600">{fieldError}</span>
                   ) : (
-                    <span className="block text-xs text-[var(--fs-muted)]">
+                    <span className="block text-xs font-medium text-[var(--fs-muted)]">
                       We’ll email a 6-digit verification code
                     </span>
                   )}
                 </label>
               )}
 
-              <button
-                type="submit"
-                disabled={sending}
-                className="mt-6 w-full rounded-xl bg-[var(--fs-leaf-deep)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--fs-leaf)] disabled:opacity-60"
-              >
-                {sending ? "Sending…" : channel === "phone" ? "Send OTP" : "Send email code"}
+              <button type="submit" disabled={sending} className="fs-btn-primary mt-6 w-full !py-3.5">
+                {sending ? "Sending…" : channel === "phone" ? "Continue with OTP" : "Send email code"}
               </button>
 
-              <p className="mt-5 text-center text-sm text-[var(--fs-muted)]">
+              <p className="mt-6 text-center text-sm font-medium text-[var(--fs-muted)]">
                 {isSignup ? (
                   <>
-                    Already shopping with us?{" "}
-                    <Link
-                      href={`/login${search.toString() ? `?${search.toString()}` : ""}`}
-                      className="font-medium text-[var(--fs-leaf)] hover:underline"
-                    >
+                    Already have an account?{" "}
+                    <Link href={`/login${qs}`} className="font-extrabold text-[var(--fs-accent)] hover:underline">
                       Sign in
                     </Link>
                   </>
                 ) : (
                   <>
-                    New here?{" "}
-                    <Link
-                      href={`/signup${search.toString() ? `?${search.toString()}` : ""}`}
-                      className="font-medium text-[var(--fs-leaf)] hover:underline"
-                    >
-                      Create an account
+                    New to Fruit Shop?{" "}
+                    <Link href={`/signup${qs}`} className="font-extrabold text-[var(--fs-accent)] hover:underline">
+                      Create account
                     </Link>
                   </>
                 )}
               </p>
-              <p className="mt-3 text-center text-xs text-[var(--fs-muted)]">
-                <Link href="/" className="hover:text-[var(--fs-leaf)]">
-                  ← Back to shop
-                </Link>
-              </p>
             </form>
           ) : (
-            <form
-              onSubmit={onVerify}
-              className="rounded-3xl border border-white/20 bg-white/95 p-7 shadow-[0_24px_60px_rgba(0,0,0,0.28)] backdrop-blur"
-            >
-              <h2 className="font-[family-name:var(--font-fraunces)] text-2xl text-[var(--fs-ink)]">
-                Enter code
-              </h2>
-              <p className="mt-1 text-sm text-[var(--fs-muted)]">
-                Sent to{" "}
-                <span className="font-medium text-stone-700">{destinationLabel}</span>
+            <form onSubmit={onVerify}>
+              <button
+                type="button"
+                className="mb-4 text-sm font-bold text-[var(--fs-muted)] hover:text-[var(--fs-accent)]"
+                onClick={() => {
+                  setStep("identifier");
+                  setCode("");
+                }}
+              >
+                ← Back
+              </button>
+
+              <h1 className="text-2xl font-extrabold tracking-tight text-[var(--fs-ink)]">
+                Enter verification code
+              </h1>
+              <p className="mt-1.5 text-sm font-medium text-[var(--fs-muted)]">
+                Code sent to{" "}
+                <span className="font-bold text-[var(--fs-ink)]">{destinationLabel}</span>
               </p>
 
               <label className="mt-6 block space-y-1.5 text-sm">
-                <span className="font-medium text-stone-700">6-digit code</span>
+                <span className="font-bold text-[var(--fs-ink)]">6-digit code</span>
                 <input
-                  className="w-full rounded-xl border border-[var(--fs-line)] bg-[var(--fs-mist)]/50 px-3.5 py-2.5 tracking-[0.35em] outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+                  className={`${inputClass} text-center text-lg font-extrabold tracking-[0.4em]`}
                   type="text"
                   name="otp"
                   inputMode="numeric"
@@ -367,41 +350,36 @@ export function CustomerAuthForm({ mode }: Props) {
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   required
                   minLength={4}
+                  autoFocus
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={verifying || code.length < 4}
-                className="mt-6 w-full rounded-xl bg-[var(--fs-leaf-deep)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--fs-leaf)] disabled:opacity-60"
+                className="fs-btn-primary mt-6 w-full !py-3.5"
               >
                 {verifying ? "Verifying…" : "Verify & continue"}
               </button>
 
-              <div className="mt-4 flex flex-col gap-2 text-center text-sm">
-                <button
-                  type="button"
-                  disabled={resendIn > 0 || sending}
-                  className="text-[var(--fs-leaf)] hover:underline disabled:cursor-not-allowed disabled:text-[var(--fs-muted)] disabled:no-underline"
-                  onClick={() => void onResend()}
-                >
-                  {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
-                </button>
-                <button
-                  type="button"
-                  className="text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
-                  onClick={() => {
-                    setStep("identifier");
-                    setCode("");
-                  }}
-                >
-                  {channel === "phone" ? "Change phone number" : "Change email address"}
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={resendIn > 0 || sending}
+                className="mt-4 w-full text-center text-sm font-bold text-[var(--fs-accent)] hover:underline disabled:cursor-not-allowed disabled:text-[var(--fs-muted)] disabled:no-underline"
+                onClick={() => void onResend()}
+              >
+                {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+              </button>
             </form>
           )}
-        </section>
-      </main>
+        </div>
+
+        <p className="mt-8 text-center text-sm font-semibold text-[var(--fs-muted)]">
+          <Link href="/" className="hover:text-[var(--fs-accent)]">
+            ← Back to shop
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

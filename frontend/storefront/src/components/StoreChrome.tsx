@@ -1,75 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useQuery } from "@fruitshop/web-core";
-import { useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 
 import { cartApi } from "@/src/modules/orders/api";
 
 function FruitMark() {
   return (
-    <span
-      className="fs-brand-mark inline-grid size-9 place-items-center rounded-xl text-white"
-      aria-hidden
-    >
-      <svg viewBox="0 0 24 24" className="size-5" fill="currentColor">
-        <path
-          d="M12 3c.4 1.6 1.4 2.6 3 3-1.2.2-2.2.8-2.8 1.8C11.4 6.8 10.2 5.6 8.5 5c1.5-.2 2.8-1 3.5-2z"
-          opacity=".9"
-        />
+    <span className="fs-brand-mark inline-grid size-9 place-items-center rounded-2xl text-white" aria-hidden>
+      <svg viewBox="0 0 24 24" className="size-4" fill="currentColor">
+        <path d="M12 3c.4 1.6 1.4 2.6 3 3-1.2.2-2.2.8-2.8 1.8C11.4 6.8 10.2 5.6 8.5 5c1.5-.2 2.8-1 3.5-2z" opacity=".9" />
         <ellipse cx="12" cy="14.5" rx="6.5" ry="7" />
       </svg>
     </span>
   );
 }
 
-const NAV_LINKS = [
+const NAV = [
   { href: "/shop", label: "Shop" },
   { href: "/shop?featured=1", label: "Featured" },
   { href: "/shop?organic=1", label: "Organic" },
 ] as const;
 
-type HeaderProps = {
-  variant?: "hero" | "solid";
-};
-
-function CartLink({ hero }: { hero: boolean }) {
-  const { isAuthenticated } = useAuth();
-  const cart = useQuery(() => cartApi.get(), [], {
-    enabled: isAuthenticated,
-  });
-  const count = cart.data?.item_count ?? 0;
-
-  return (
-    <Link
-      href={isAuthenticated ? "/cart" : "/login?next=/cart"}
-      className={`relative inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition ${
-        hero
-          ? "text-white/90 hover:bg-white/10 hover:text-white"
-          : "text-[var(--fs-muted)] hover:bg-[var(--fs-mist)] hover:text-[var(--fs-ink)]"
-      }`}
-      aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
-    >
-      <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.75">
-        <path d="M6 6h15l-1.5 9h-12L6 6z" strokeLinejoin="round" />
-        <path d="M6 6 5 3H2" strokeLinecap="round" />
-        <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
-        <circle cx="18" cy="20" r="1.25" fill="currentColor" stroke="none" />
-      </svg>
-      <span className="hidden sm:inline">Cart</span>
-      {count > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 grid min-w-[1.125rem] place-items-center rounded-full bg-[var(--fs-mango)] px-1 text-[10px] font-bold text-[var(--fs-orchard)]">
-          {count > 99 ? "99+" : count}
-        </span>
-      )}
-    </Link>
-  );
-}
-
 export function PromoBar() {
   return (
-    <div className="fs-promo-bar text-center text-[12px] font-semibold tracking-wide text-white/95 sm:text-[13px]">
+    <div className="fs-promo-bar text-center text-[12px] font-semibold sm:text-[13px]">
       <p className="px-4 py-2.5">
         Fresh fruit packed after you order · Phone OTP checkout · Delivery across select cities
       </p>
@@ -77,171 +34,124 @@ export function PromoBar() {
   );
 }
 
-export function SiteHeader({ variant = "solid" }: HeaderProps) {
+function CartLink() {
+  const { isAuthenticated } = useAuth();
+  const cart = useQuery(() => cartApi.get(), [], { enabled: isAuthenticated });
+  const count = cart.data?.item_count ?? 0;
+
+  return (
+    <Link
+      href={isAuthenticated ? "/cart" : "/login?next=/cart"}
+      className="relative rounded-full px-3 py-2 text-sm font-bold text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
+    >
+      Cart
+      {count > 0 && (
+        <span className="ml-1.5 inline-flex min-w-[1.15rem] justify-center rounded-full bg-[var(--fs-accent)] px-1 text-[10px] font-extrabold text-white">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+export function SiteHeader() {
   const pathname = usePathname();
-  const { user, logout, bootstrapping, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { logout, bootstrapping, isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
-  const hero = variant === "hero";
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  const linkBase = hero
-    ? "text-white/85 hover:text-white hover:bg-white/10"
-    : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]";
+  function onSearch(e: FormEvent) {
+    e.preventDefault();
+    const term = q.trim();
+    router.push(term ? `/shop?q=${encodeURIComponent(term)}` : "/shop");
+  }
 
   return (
-    <header
-      className={
-        hero
-          ? "relative z-40"
-          : "sticky top-0 z-40 border-b border-[var(--fs-line)] bg-white/95 backdrop-blur-md"
-      }
-    >
-      {!hero ? <PromoBar /> : null}
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className={`flex items-center gap-2.5 ${hero ? "text-white" : "text-[var(--fs-ink)]"}`}
-        >
+    <header className="sticky top-0 z-50 border-b border-[var(--fs-line)] bg-white/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <Link href="/" className="flex items-center gap-2.5">
           <FruitMark />
-          <span className="font-[family-name:var(--font-display)] text-xl tracking-tight sm:text-2xl">
-            Fruit Shop
-          </span>
+          <span className="text-xl font-extrabold tracking-tight">Fruit Shop</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {NAV_LINKS.map((item) => (
+          {NAV.map((item) => (
             <Link
-              key={item.href}
+              key={item.href + item.label}
               href={item.href}
-              className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${linkBase}`}
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)] hover:text-[var(--fs-ink)]"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-1.5 text-sm sm:gap-2">
-          <CartLink hero={hero} />
+        <div className="flex items-center gap-1">
+          <form onSubmit={onSearch} className="hidden lg:block">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search fruit…"
+              className="w-44 rounded-full border border-[var(--fs-line)] bg-[var(--fs-canvas)] px-3.5 py-2 text-sm outline-none focus:border-[var(--fs-accent)]"
+            />
+          </form>
+          <CartLink />
           {bootstrapping ? (
-            <span className={hero ? "text-white/50" : "text-[var(--fs-muted)]"}>…</span>
-          ) : isAuthenticated && user ? (
+            <span className="px-2 text-sm text-[var(--fs-muted)]">…</span>
+          ) : isAuthenticated ? (
             <>
               <Link
                 href="/account"
-                className={`hidden truncate max-w-[9rem] sm:inline ${
-                  hero ? "text-white/85" : "text-[var(--fs-muted)]"
-                }`}
-              >
-                {user.name}
-              </Link>
-              <Link
-                href="/account"
-                className={
-                  hero
-                    ? "rounded-full border border-white/30 bg-white/10 px-3.5 py-2 font-medium text-white hover:bg-white/20"
-                    : "rounded-full border border-[var(--fs-line)] bg-white px-3.5 py-2 font-medium text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
-                }
+                className="rounded-full px-3 py-2 text-sm font-bold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
               >
                 Account
               </Link>
               <button
                 type="button"
-                onClick={() => {
-                  void logout();
-                }}
-                className={
-                  hero
-                    ? "rounded-full px-3 py-2 text-white/80 hover:bg-white/10"
-                    : "rounded-full px-3 py-2 text-[var(--fs-muted)] hover:bg-[var(--fs-mist)]"
-                }
+                onClick={() => void logout()}
+                className="hidden rounded-full px-3 py-2 text-sm font-semibold text-[var(--fs-muted)] hover:bg-[var(--fs-mist)] sm:inline"
               >
                 Sign out
               </button>
             </>
           ) : (
-            <>
-              <Link href="/login" className={`rounded-full px-3.5 py-2 font-medium ${linkBase}`}>
-                Sign in
-              </Link>
-              <Link
-                href="/signup"
-                className={
-                  hero
-                    ? "rounded-full bg-[var(--fs-mango)] px-4 py-2 font-semibold text-[var(--fs-orchard)] hover:bg-[var(--fs-citrus)]"
-                    : "rounded-full bg-[var(--fs-leaf)] px-4 py-2 font-semibold text-white hover:bg-[var(--fs-leaf-deep)]"
-                }
-              >
-                Sign up
-              </Link>
-            </>
+            <Link href="/login" className="fs-btn-primary !px-4 !py-2">
+              Sign in
+            </Link>
           )}
-
           <button
             type="button"
-            className={`inline-flex size-10 items-center justify-center rounded-xl md:hidden ${
-              hero
-                ? "border border-white/30 text-white"
-                : "border border-[var(--fs-line)] text-[var(--fs-ink)]"
-            }`}
-            aria-label="Open menu"
+            className="ml-1 inline-flex size-9 items-center justify-center rounded-xl border border-[var(--fs-line)] md:hidden"
+            aria-label="Menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            <span className="flex flex-col gap-1.5" aria-hidden>
-              <span className="block h-0.5 w-4 rounded bg-current" />
-              <span className="block h-0.5 w-4 rounded bg-current" />
-              <span className="block h-0.5 w-3 rounded bg-current" />
+            <span className="flex flex-col gap-1" aria-hidden>
+              <span className="block h-0.5 w-3.5 rounded bg-current" />
+              <span className="block h-0.5 w-3.5 rounded bg-current" />
             </span>
           </button>
         </div>
       </div>
 
       {open && (
-        <div
-          className={`border-t md:hidden ${
-            hero ? "border-white/15 bg-[var(--fs-orchard)]/95 text-white" : "border-[var(--fs-line)] bg-white"
-          }`}
-        >
-          <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
-            {NAV_LINKS.map((item) => (
+        <div className="border-t border-[var(--fs-line)] bg-white md:hidden">
+          <nav className="flex flex-col px-4 py-2">
+            {NAV.map((item) => (
               <Link
-                key={item.href}
+                key={`m-${item.label}`}
                 href={item.href}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium"
+                className="rounded-xl px-3 py-2.5 text-sm font-bold"
                 onClick={() => setOpen(false)}
               >
                 {item.label}
               </Link>
             ))}
-            <Link
-              href={isAuthenticated ? "/cart" : "/login?next=/cart"}
-              className="rounded-lg px-3 py-2.5 text-sm font-medium"
-              onClick={() => setOpen(false)}
-            >
-              Cart
-            </Link>
-            {!bootstrapping && !isAuthenticated && (
-              <>
-                <Link href="/login" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
-                  Sign in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="rounded-lg px-3 py-2.5 text-sm font-semibold"
-                  onClick={() => setOpen(false)}
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-            {isAuthenticated && (
-              <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
-                Account
-              </Link>
-            )}
           </nav>
         </div>
       )}
@@ -253,77 +163,73 @@ export function StoreFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto bg-[var(--fs-orchard)] text-white">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-4 lg:px-8">
-        <div className="md:col-span-1">
+    <footer className="mt-auto border-t border-[var(--fs-line)] bg-white">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-4 sm:px-6">
+        <div className="sm:col-span-1">
           <div className="flex items-center gap-2.5">
             <FruitMark />
-            <p className="font-[family-name:var(--font-display)] text-xl">Fruit Shop</p>
+            <p className="text-lg font-extrabold">Fruit Shop</p>
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-white/65">
+          <p className="mt-3 text-sm leading-relaxed text-[var(--fs-muted)]">
             Fresh and exotic fruit, packed with care and delivered to your door.
           </p>
         </div>
-
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">Shop</p>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-accent)]">Shop</p>
+          <ul className="mt-3 space-y-2 text-sm font-semibold text-[var(--fs-muted)]">
             <li>
-              <Link href="/shop" className="hover:text-white">
+              <Link href="/shop" className="hover:text-[var(--fs-accent)]">
                 All fruit
               </Link>
             </li>
             <li>
-              <Link href="/shop?featured=1" className="hover:text-white">
+              <Link href="/shop?featured=1" className="hover:text-[var(--fs-accent)]">
                 Featured
               </Link>
             </li>
             <li>
-              <Link href="/shop?organic=1" className="hover:text-white">
+              <Link href="/shop?organic=1" className="hover:text-[var(--fs-accent)]">
                 Organic
               </Link>
             </li>
           </ul>
         </div>
-
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">Account</p>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-accent)]">Account</p>
+          <ul className="mt-3 space-y-2 text-sm font-semibold text-[var(--fs-muted)]">
             <li>
-              <Link href="/login" className="hover:text-white">
+              <Link href="/login" className="hover:text-[var(--fs-accent)]">
                 Sign in
               </Link>
             </li>
             <li>
-              <Link href="/signup" className="hover:text-white">
+              <Link href="/signup" className="hover:text-[var(--fs-accent)]">
                 Create account
               </Link>
             </li>
             <li>
-              <Link href="/account/orders" className="hover:text-white">
+              <Link href="/account/orders" className="hover:text-[var(--fs-accent)]">
                 Order history
               </Link>
             </li>
             <li>
-              <Link href="/cart" className="hover:text-white">
+              <Link href="/cart" className="hover:text-[var(--fs-accent)]">
                 Cart
               </Link>
             </li>
           </ul>
         </div>
-
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">Delivery</p>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-accent)]">Delivery</p>
+          <ul className="mt-3 space-y-2 text-sm font-semibold text-[var(--fs-muted)]">
             <li>Same-day in select cities</li>
             <li>Phone OTP login — no password</li>
             <li>Packed for freshness</li>
           </ul>
         </div>
       </div>
-
-      <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+      <div className="border-t border-[var(--fs-line)] bg-[var(--fs-mist)]/50">
+        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-xs font-semibold text-[var(--fs-muted)] sm:flex-row sm:justify-between sm:px-6">
           <p>© {year} Fruit Shop. All rights reserved.</p>
           <p>Fresh · Seasonal · Delivered</p>
         </div>
@@ -332,25 +238,18 @@ export function StoreFooter() {
   );
 }
 
-export function StoreShell({
-  children,
-  header = "solid",
-}: {
-  children: ReactNode;
-  header?: "hero" | "solid";
-}) {
+export function StoreShell({ children }: { children: ReactNode; header?: string }) {
   return (
     <div className="fs-store-canvas flex min-h-dvh flex-col">
-      {header === "solid" ? <SiteHeader variant="solid" /> : null}
+      <PromoBar />
+      <SiteHeader />
       {children}
       <StoreFooter />
     </div>
   );
 }
 
-/** @deprecated use SiteHeader */
-export const StoreHeader = () => <SiteHeader variant="hero" />;
-/** @deprecated use StoreShell */
+export const StoreHeader = () => null;
 export function StoreChrome({ children }: { children: ReactNode }) {
-  return <StoreShell header="hero">{children}</StoreShell>;
+  return <StoreShell>{children}</StoreShell>;
 }

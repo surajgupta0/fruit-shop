@@ -5,7 +5,13 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useMutation, useQuery } from "@fruitshop/web-core";
 
-import { AccountShell } from "@/src/components/AccountShell";
+import {
+  AccountCard,
+  AccountLoader,
+  AccountSectionTitle,
+  AccountShell,
+  StatusBadge,
+} from "@/src/components/AccountShell";
 import { RequireAuth } from "@/src/components/RequireAuth";
 import {
   formatMoney,
@@ -37,21 +43,17 @@ function formatWhen(iso: string | null | undefined) {
   }
 }
 
-function statusColor(status: OrderStatus) {
-  if (status === "delivered") return "text-[var(--fs-leaf)]";
-  if (status === "cancelled") return "text-rose-600";
-  return "text-[var(--fs-mango-deep)]";
-}
-
 function StatusStepper({ status }: { status: OrderStatus }) {
   if (status === "cancelled") {
     return (
-      <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
         This order was cancelled
-      </p>
+      </div>
     );
   }
+
   const idx = FLOW.indexOf(status);
+
   return (
     <ol className="grid gap-2 sm:grid-cols-5">
       {FLOW.map((step, i) => {
@@ -60,11 +62,11 @@ function StatusStepper({ status }: { status: OrderStatus }) {
         return (
           <li
             key={step}
-            className={`rounded-xl px-3 py-2 text-center text-xs font-medium ${
+            className={`rounded-xl px-2 py-2.5 text-center text-[11px] font-extrabold uppercase tracking-wide sm:text-xs ${
               current
-                ? "bg-[var(--fs-leaf-deep)] text-white"
+                ? "bg-[var(--fs-accent)] text-white shadow-sm"
                 : done
-                  ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
+                  ? "bg-[var(--fs-mist)] text-[var(--fs-accent-deep)]"
                   : "bg-stone-50 text-[var(--fs-muted)]"
             }`}
           >
@@ -87,8 +89,10 @@ function OrderDetailContent() {
 
   if (order.isLoading) {
     return (
-      <AccountShell title="Order" subtitle="Loading…">
-        <p className="text-sm text-[var(--fs-muted)]">Loading order…</p>
+      <AccountShell title="Order" subtitle="Fetching details…">
+        <AccountCard>
+          <AccountLoader label="Loading order…" />
+        </AccountCard>
       </AccountShell>
     );
   }
@@ -96,10 +100,17 @@ function OrderDetailContent() {
   if (order.error || !order.data) {
     return (
       <AccountShell title="Order not found">
-        <p className="text-sm text-rose-600">{order.error?.message ?? "Order not found"}</p>
-        <Link href="/account/orders" className="mt-4 inline-block text-[var(--fs-leaf)] hover:underline">
-          ← All orders
-        </Link>
+        <AccountCard>
+          <p className="text-sm font-semibold text-rose-600">
+            {order.error?.message ?? "We couldn’t find this order."}
+          </p>
+          <Link
+            href="/account/orders"
+            className="mt-4 inline-block text-sm font-bold text-[var(--fs-accent)] hover:underline"
+          >
+            ← Back to orders
+          </Link>
+        </AccountCard>
       </AccountShell>
     );
   }
@@ -109,76 +120,85 @@ function OrderDetailContent() {
   const timeline = o.timeline ?? [];
 
   return (
-    <AccountShell title={o.order_number} subtitle={`Placed ${formatWhen(o.created_at)}`}>
+    <AccountShell
+      title={o.order_number}
+      subtitle={`Placed ${formatWhen(o.created_at)}`}
+      actions={<StatusBadge status={o.status} />}
+    >
       {justPlaced && (
-        <div className="mb-6 rounded-2xl border border-[var(--fs-leaf)]/30 bg-[var(--fs-mist)] px-5 py-4 text-sm">
-          <p className="font-semibold text-[var(--fs-leaf-deep)]">Order placed — thank you!</p>
-          <p className="mt-1 text-[var(--fs-muted)]">
-            We&apos;ll pack your fruit with care. Track status below.
+        <div className="mb-6 rounded-2xl border border-[var(--fs-accent)]/25 bg-[var(--fs-mist)] px-5 py-4">
+          <p className="font-extrabold text-[var(--fs-accent-deep)]">Order placed — thank you!</p>
+          <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">
+            We’ll pack your fruit with care. Track progress below.
           </p>
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/account/orders"
-          className="text-sm text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
+          className="text-sm font-bold text-[var(--fs-muted)] hover:text-[var(--fs-accent)]"
         >
           ← All orders
         </Link>
-        <p className={`text-sm font-semibold capitalize ${statusColor(o.status)}`}>
-          {orderStatusLabel(o.status)} · {o.payment_status}
+        <p className="text-sm font-semibold capitalize text-[var(--fs-muted)]">
+          Payment · {o.payment_status}
         </p>
       </div>
 
-      <div className="mb-6 rounded-2xl border border-[var(--fs-line)] bg-white p-5">
-        <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Progress</h2>
-        <div className="mt-4">
-          <StatusStepper status={o.status} />
-        </div>
+      <AccountCard className="mb-6">
+        <AccountSectionTitle title="Progress" />
+        <StatusStepper status={o.status} />
         {timeline.length > 0 && (
-          <ul className="mt-5 space-y-2 border-t border-[var(--fs-line)] pt-4">
+          <ul className="mt-5 space-y-2.5 border-t border-[var(--fs-line)] pt-4">
             {[...timeline].reverse().map((event) => (
               <li key={event.id} className="flex justify-between gap-3 text-sm">
                 <span>
-                  <span className="font-medium capitalize">{event.to_status}</span>
+                  <span className="font-bold capitalize text-[var(--fs-ink)]">
+                    {event.to_status}
+                  </span>
                   {event.note ? (
-                    <span className="text-[var(--fs-muted)]"> — {event.note}</span>
+                    <span className="font-medium text-[var(--fs-muted)]"> — {event.note}</span>
                   ) : null}
                 </span>
-                <span className="shrink-0 text-xs text-[var(--fs-muted)]">
+                <span className="shrink-0 text-xs font-medium text-[var(--fs-muted)]">
                   {formatWhen(event.created_at)}
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </AccountCard>
 
       {(o.tracking_number || o.carrier) && (
-        <div className="mb-6 rounded-2xl border border-[var(--fs-leaf)]/25 bg-[var(--fs-mist)]/50 p-5">
-          <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Tracking</h2>
-          <p className="mt-2 text-sm">
-            {o.carrier ? <span className="font-medium">{o.carrier}</span> : null}
+        <AccountCard className="mb-6 !border-[var(--fs-accent)]/20 !bg-[var(--fs-mist)]/60">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--fs-accent)]">
+            Tracking
+          </p>
+          <p className="mt-2 text-sm font-semibold text-[var(--fs-ink)]">
+            {o.carrier ? <span>{o.carrier}</span> : null}
             {o.carrier && o.tracking_number ? " · " : null}
             {o.tracking_number ? (
-              <span className="font-mono text-[var(--fs-leaf-deep)]">{o.tracking_number}</span>
+              <span className="font-mono text-[var(--fs-accent-deep)]">{o.tracking_number}</span>
             ) : null}
           </p>
           {o.shipped_at && (
-            <p className="mt-1 text-xs text-[var(--fs-muted)]">
+            <p className="mt-1 text-xs font-medium text-[var(--fs-muted)]">
               Shipped {formatWhen(o.shipped_at)}
             </p>
           )}
-        </div>
+        </AccountCard>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-2xl border border-[var(--fs-line)] bg-white">
+          <AccountCard padded={false}>
+            <div className="border-b border-[var(--fs-line)] px-5 py-4">
+              <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Items</h2>
+            </div>
             <ul className="divide-y divide-[var(--fs-line)]">
               {o.items.map((item) => (
-                <li key={item.id} className="flex gap-4 p-4 sm:p-5">
+                <li key={item.id} className="flex gap-4 px-5 py-4">
                   <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-[var(--fs-mist)]">
                     {item.primary_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -190,61 +210,65 @@ function OrderDetailContent() {
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{item.product_name}</p>
-                    <p className="text-sm text-[var(--fs-muted)]">{item.variant_name}</p>
+                    <p className="font-extrabold text-[var(--fs-ink)]">{item.product_name}</p>
+                    <p className="mt-0.5 text-sm font-medium text-[var(--fs-muted)]">
+                      {item.variant_name}
+                    </p>
                   </div>
                   <div className="text-right text-sm">
-                    <p>
+                    <p className="font-medium text-[var(--fs-muted)]">
                       {item.quantity} × {formatMoney(item.unit_price)}
                     </p>
-                    <p className="font-medium">{formatMoney(item.line_total)}</p>
+                    <p className="mt-0.5 font-extrabold">{formatMoney(item.line_total)}</p>
                   </div>
                 </li>
               ))}
             </ul>
-          </div>
+          </AccountCard>
           {o.cancel_reason && (
-            <p className="text-sm text-rose-700">Cancelled: {o.cancel_reason}</p>
+            <p className="text-sm font-semibold text-rose-700">
+              Cancelled: {o.cancel_reason}
+            </p>
           )}
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-[var(--fs-line)] bg-white p-5">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Summary</h2>
-            <dl className="mt-3 space-y-2 text-sm">
+          <AccountCard>
+            <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Summary</h2>
+            <dl className="mt-4 space-y-2.5 text-sm">
               <div className="flex justify-between">
-                <dt className="text-[var(--fs-muted)]">Subtotal</dt>
-                <dd>{formatMoney(o.subtotal)}</dd>
+                <dt className="font-medium text-[var(--fs-muted)]">Subtotal</dt>
+                <dd className="font-semibold">{formatMoney(o.subtotal)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-[var(--fs-muted)]">Tax</dt>
-                <dd>{formatMoney(o.tax_amount)}</dd>
+                <dt className="font-medium text-[var(--fs-muted)]">Tax</dt>
+                <dd className="font-semibold">{formatMoney(o.tax_amount)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-[var(--fs-muted)]">Shipping</dt>
-                <dd>
+                <dt className="font-medium text-[var(--fs-muted)]">Shipping</dt>
+                <dd className="font-semibold">
                   {Number(o.shipping_amount) === 0 ? "Free" : formatMoney(o.shipping_amount)}
                 </dd>
               </div>
               {Number(o.discount_amount) > 0 && (
-                <div className="flex justify-between text-[var(--fs-leaf-deep)]">
-                  <dt>
+                <div className="flex justify-between text-[var(--fs-accent-deep)]">
+                  <dt className="font-medium">
                     Discount
                     {o.coupon_code ? ` (${o.coupon_code})` : ""}
                   </dt>
-                  <dd>−{formatMoney(o.discount_amount)}</dd>
+                  <dd className="font-semibold">−{formatMoney(o.discount_amount)}</dd>
                 </div>
               )}
-              <div className="flex justify-between border-t border-[var(--fs-line)] pt-2 font-semibold">
+              <div className="flex justify-between border-t border-[var(--fs-line)] pt-2.5 text-base font-extrabold">
                 <dt>Total</dt>
                 <dd>{formatMoney(o.total)}</dd>
               </div>
             </dl>
-          </div>
+          </AccountCard>
 
-          <div className="rounded-2xl border border-[var(--fs-line)] bg-white p-5">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Deliver to</h2>
-            <p className="mt-2 whitespace-pre-line text-sm text-[var(--fs-muted)]">
+          <AccountCard>
+            <h2 className="text-lg font-extrabold text-[var(--fs-ink)]">Deliver to</h2>
+            <p className="mt-3 whitespace-pre-line text-sm font-medium leading-relaxed text-[var(--fs-muted)]">
               {[
                 o.shipping_line1,
                 o.shipping_line2,
@@ -253,13 +277,13 @@ function OrderDetailContent() {
                 .filter(Boolean)
                 .join("\n")}
             </p>
-          </div>
+          </AccountCard>
 
           {canCancel && (
             <button
               type="button"
               disabled={cancel.isLoading}
-              className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+              className="w-full rounded-xl border border-rose-200 bg-white py-3 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
               onClick={async () => {
                 if (!confirm("Cancel this order?")) return;
                 try {
@@ -282,7 +306,15 @@ function OrderDetailContent() {
 export default function OrderDetailPage() {
   return (
     <RequireAuth>
-      <Suspense fallback={<p className="p-8 text-sm text-[var(--fs-muted)]">Loading…</p>}>
+      <Suspense
+        fallback={
+          <AccountShell title="Order">
+            <AccountCard>
+              <AccountLoader />
+            </AccountCard>
+          </AccountShell>
+        }
+      >
         <OrderDetailContent />
       </Suspense>
     </RequireAuth>
