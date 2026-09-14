@@ -33,10 +33,10 @@ function RolesPanel() {
           {(roles.data ?? []).map((role) => (
             <Surface key={role.id} padded>
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-[family-name:var(--font-fraunces)] text-lg capitalize text-[var(--fs-ink)]">
+                <h3 className="text-lg font-extrabold capitalize text-[var(--fs-ink)]">
                   {role.name}
                 </h3>
-                <span className="rounded-md bg-[var(--fs-mist)] px-2 py-0.5 text-[11px] font-medium text-[var(--fs-leaf-deep)]">
+                <span className="rounded-md bg-[var(--fs-mist)] px-2 py-0.5 text-[11px] font-medium text-[var(--fs-accent-deep)]">
                   {role.permissions.length}
                 </span>
               </div>
@@ -75,7 +75,7 @@ function RolesPanel() {
                 <tbody className="divide-y divide-[var(--fs-line)]">
                   {permissions.data.map((p) => (
                     <tr key={p.id} className="hover:bg-[var(--fs-mist)]/30">
-                      <td className="px-4 py-2.5 font-mono text-xs text-[var(--fs-leaf-deep)]">
+                      <td className="px-4 py-2.5 font-mono text-xs text-[var(--fs-accent-deep)]">
                         {p.code}
                       </td>
                       <td className="px-4 py-2.5 text-[var(--fs-muted)]">

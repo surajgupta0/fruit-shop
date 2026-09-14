@@ -12,6 +12,7 @@ import {
   Field,
   Input,
   PageHeader,
+  PageLoader,
   SectionLabel,
   Select,
   StatusPill,
@@ -149,13 +150,13 @@ function ProductDetailPanel({ productId }: { productId: string }) {
   }, [relatedPicker.data, productId]);
 
   if (detail.isLoading) {
-    return <p className="text-sm text-[var(--fs-muted)]">Loading product…</p>;
+    return <PageLoader title="Loading product" detail="Fetching listing details, variants, and media…" />;
   }
   if (detail.error || !detail.data) {
     return (
-      <div className="space-y-2">
-        <p className="text-sm text-rose-600">{detail.error?.message ?? "Not found"}</p>
-        <Link href="/products" className="text-sm text-[var(--fs-leaf)]">
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-rose-600">{detail.error?.message ?? "Not found"}</p>
+        <Link href="/products" className="text-sm font-bold text-[var(--fs-accent)] hover:underline">
           Back to products
         </Link>
       </div>
@@ -205,7 +206,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
         breadcrumb={
           <Link
             href="/products"
-            className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
+            className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-accent)]"
           >
             ← Products
           </Link>
@@ -285,7 +286,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
             onClick={() => setTab(id)}
             className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
               tab === id
-                ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
+                ? "bg-[var(--fs-mist)] text-[var(--fs-accent-deep)]"
                 : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
             }`}
           >
@@ -314,7 +315,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
               </Field>
               <Field label="Description">
                 <textarea
-                  className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2.5 text-sm outline-none focus:border-[var(--fs-leaf)]"
+                  className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2.5 text-sm outline-none focus:border-[var(--fs-accent)]"
                   rows={4}
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -453,7 +454,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                     }
                     className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
                       on
-                        ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)] ring-[var(--fs-leaf)]/30"
+                        ? "bg-[var(--fs-mist)] text-[var(--fs-accent-deep)] ring-[var(--fs-leaf)]/30"
                         : "bg-white text-[var(--fs-muted)] ring-[var(--fs-line)]"
                     }`}
                   >
@@ -526,7 +527,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                       <td className="px-4 py-3 text-right">
                         <Link
                           href="/inventory"
-                          className="mr-3 text-xs text-[var(--fs-leaf)] hover:underline"
+                          className="mr-3 text-xs text-[var(--fs-accent)] hover:underline"
                         >
                           Ledger
                         </Link>
@@ -631,7 +632,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                 {opt.values.map((val) => (
                   <span
                     key={val.id}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--fs-mist)] px-2.5 py-1 text-xs text-[var(--fs-leaf-deep)]"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--fs-mist)] px-2.5 py-1 text-xs text-[var(--fs-accent-deep)]"
                   >
                     {val.value}
                     <button
@@ -863,7 +864,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                     {!img.is_primary && (
                       <button
                         type="button"
-                        className="text-[var(--fs-leaf)] hover:underline"
+                        className="text-[var(--fs-accent)] hover:underline"
                         onClick={async () => {
                           try {
                             await catalogApi.reorderImages(
@@ -952,7 +953,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                       <td className="px-4 py-3">
                         <Link
                           href={`/products/${rel.related_product_id}`}
-                          className="font-medium hover:text-[var(--fs-leaf)]"
+                          className="font-medium hover:text-[var(--fs-accent)]"
                         >
                           {rel.related_name ?? rel.related_product_id}
                         </Link>

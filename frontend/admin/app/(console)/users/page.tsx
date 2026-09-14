@@ -46,7 +46,7 @@ function CreateUserForm({
   const roleValue = form.role === "admin" && !canCreateAdmin ? "staff" : form.role;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--fs-leaf-deep)]/40 p-4 backdrop-blur-[2px] sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--fs-accent-deep)]/40 p-4 backdrop-blur-[2px] sm:items-center">
       <div
         role="dialog"
         aria-labelledby="create-user-title"
@@ -54,7 +54,7 @@ function CreateUserForm({
       >
         <h2
           id="create-user-title"
-          className="font-[family-name:var(--font-fraunces)] text-xl text-[var(--fs-ink)]"
+          className="text-xl font-extrabold text-[var(--fs-ink)]"
         >
           Create staff user
         </h2>
@@ -216,7 +216,7 @@ function UsersPanel() {
                         {canRead ? (
                           <Link
                             href={`/users/${u.id}`}
-                            className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-leaf)]"
+                            className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-accent)]"
                           >
                             {u.name}
                           </Link>

@@ -17,6 +17,7 @@ import {
   Select,
   StatusPill,
   Surface,
+  StatCard,
 } from "@/src/console/ui";
 import {
   formatMoney,
@@ -82,30 +83,24 @@ function OrdersPanel() {
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Surface padded>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--fs-muted)]">
-            Total orders
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-fraunces)] text-2xl">
-            {list.data?.total ?? (list.isLoading ? "…" : "0")}
-          </p>
-        </Surface>
-        <Surface padded>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--fs-muted)]">
-            On this page (open)
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-fraunces)] text-2xl">
-            {list.isLoading ? "…" : stats.active}
-          </p>
-        </Surface>
-        <Surface padded>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--fs-muted)]">
-            Page revenue
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-fraunces)] text-2xl">
-            {list.isLoading ? "…" : formatMoney(stats.pageTotal)}
-          </p>
-        </Surface>
+        <StatCard
+          label="Total orders"
+          value={list.data?.total ?? 0}
+          loading={list.isLoading}
+          hint="Matching current filters"
+        />
+        <StatCard
+          label="Open on this page"
+          value={stats.active}
+          loading={list.isLoading}
+          hint="Not delivered or cancelled"
+        />
+        <StatCard
+          label="Page revenue"
+          value={formatMoney(stats.pageTotal) ?? "₹0"}
+          loading={list.isLoading}
+          hint="Sum of rows shown"
+        />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -174,7 +169,7 @@ function OrdersPanel() {
                       <td className="px-4 py-3">
                         <Link
                           href={`/orders/${order.id}`}
-                          className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-leaf)]"
+                          className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-accent)]"
                         >
                           {order.order_number}
                         </Link>

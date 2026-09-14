@@ -12,6 +12,7 @@ import {
   Field,
   Input,
   PageHeader,
+  PageLoader,
   SectionLabel,
   Select,
   StatusPill,
@@ -49,13 +50,13 @@ function UserDetailPanel({ userId }: { userId: string }) {
   const savePassword = useMutation(() => usersApi.setPassword(userId, password));
 
   if (detail.isLoading) {
-    return <p className="text-sm text-[var(--fs-muted)]">Loading user…</p>;
+    return <PageLoader title="Loading user" detail="Fetching profile, role, and account status…" />;
   }
   if (detail.error || !detail.data) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-rose-600">{detail.error?.message ?? "User not found"}</p>
-        <Link href="/users" className="text-sm text-[var(--fs-leaf)] hover:underline">
+        <p className="text-sm font-semibold text-rose-600">{detail.error?.message ?? "User not found"}</p>
+        <Link href="/users" className="text-sm font-bold text-[var(--fs-accent)] hover:underline">
           Back to users
         </Link>
       </div>
@@ -75,7 +76,7 @@ function UserDetailPanel({ userId }: { userId: string }) {
           <Can permission={P.USERS_LIST}>
             <Link
               href="/users"
-              className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
+              className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-accent)]"
             >
               ← Users
             </Link>
@@ -235,7 +236,7 @@ function UserDetailPanel({ userId }: { userId: string }) {
           {u.permissions.map((code) => (
             <code
               key={code}
-              className="rounded-md bg-[var(--fs-mist)] px-2 py-1 font-mono text-[11px] text-[var(--fs-leaf-deep)]"
+              className="rounded-md bg-[var(--fs-mist)] px-2 py-1 font-mono text-[11px] text-[var(--fs-accent-deep)]"
             >
               {code}
             </code>

@@ -117,7 +117,7 @@ function ProductsPanel() {
                           <div>
                             <Link
                               href={`/products/${p.id}`}
-                              className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-leaf)]"
+                              className="font-medium text-[var(--fs-ink)] hover:text-[var(--fs-accent)]"
                             >
                               {p.name}
                             </Link>
@@ -184,7 +184,7 @@ function ProductsPanel() {
 export default function ProductsPage() {
   return (
     <RequirePermission permission={P.CATALOG_MANAGE}>
-      <Suspense fallback={<p className="text-sm text-[var(--fs-muted)]">Loading…</p>}>
+      <Suspense fallback={<LoadingLine label="Loading products…" />}>
         <ProductsPanel />
       </Suspense>
     </RequirePermission>

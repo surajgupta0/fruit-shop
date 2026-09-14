@@ -18,9 +18,15 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center gap-3 text-sm font-semibold text-[var(--fs-muted)]">
-          <span className="size-5 animate-spin rounded-full border-2 border-[var(--fs-mist)] border-t-[var(--fs-accent)]" />
-          Loading…
+        <div className="grid min-h-dvh place-items-center bg-[var(--fs-canvas)] px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--fs-line)] bg-white p-8 text-center shadow-[var(--fs-shadow-sm)]">
+            <span className="mx-auto block size-5 animate-spin rounded-full border-2 border-[var(--fs-mist)] border-t-[var(--fs-accent)]" />
+            <p className="mt-4 text-sm font-bold text-[var(--fs-muted)]">Preparing signup…</p>
+            <div className="mt-6 space-y-2">
+              <div className="fs-skeleton mx-auto h-10 w-full !rounded-xl" />
+              <div className="fs-skeleton mx-auto h-10 w-full !rounded-xl" />
+            </div>
+          </div>
         </div>
       }
     >

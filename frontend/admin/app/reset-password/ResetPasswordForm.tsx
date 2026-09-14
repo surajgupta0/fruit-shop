@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@fruitshop/web-core";
 
+import { AuthShell, Btn, Field, Input } from "@/src/console/ui";
 import { authApi } from "@/src/modules/auth/api";
 
 export function ResetPasswordForm() {
@@ -38,68 +39,49 @@ export function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="relative min-h-screen overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-[linear-gradient(160deg,#0f3d28_0%,#1f6a45_45%,#143522_100%)]"
-        />
-        <main className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12 text-white">
-          <p className="font-[family-name:var(--font-fraunces)] text-4xl tracking-tight">
-            Fruit Shop
+      <AuthShell
+        title="Reset link incomplete"
+        subtitle="Open the link from your email, or request a new password reset."
+      >
+        <div className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]">
+          <p className="text-sm font-medium text-[var(--fs-muted)]">
+            The reset token is missing from this URL.
           </p>
-          <h1 className="mt-6 font-[family-name:var(--font-fraunces)] text-3xl">
-            Reset link incomplete
-          </h1>
-          <p className="mt-3 text-white/75">
-            Open the link from your email, or request a new password reset.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/forgot-password"
-              className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[var(--fs-leaf-deep)]"
-            >
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/forgot-password" className="fs-btn-primary">
               Request reset
             </Link>
             <Link
               href="/login"
-              className="rounded-xl border border-white/40 px-5 py-3 text-sm font-medium text-white hover:bg-white/10"
+              className="rounded-xl border border-[var(--fs-line)] px-5 py-2.5 text-sm font-bold text-[var(--fs-ink)] hover:bg-[var(--fs-mist)]"
             >
               Sign in
             </Link>
           </div>
-        </main>
-      </div>
+        </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_10%_-10%,#2f8f5b55,transparent),linear-gradient(160deg,#0f3d28_0%,#1f6a45_45%,#143522_100%)]"
-      />
-
-      <main className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-        <p className="fs-rise font-[family-name:var(--font-fraunces)] text-4xl text-white tracking-tight">
-          Fruit Shop
+    <AuthShell
+      title="Choose a new password"
+      subtitle="Use at least 8 characters. You’ll sign in again afterward."
+    >
+      <form
+        onSubmit={onSubmit}
+        className="rounded-3xl border border-[var(--fs-line)] bg-white p-7 shadow-[var(--fs-shadow)]"
+        noValidate
+      >
+        <h2 className="text-2xl font-extrabold text-[var(--fs-ink)]">New password</h2>
+        <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">
+          Make it strong and unique to this console.
         </p>
-        <form
-          onSubmit={onSubmit}
-          className="fs-rise-delay mt-8 rounded-3xl bg-white/95 p-7 shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
-          noValidate
-        >
-          <h1 className="font-[family-name:var(--font-fraunces)] text-2xl text-[var(--fs-ink)]">
-            Choose a new password
-          </h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Use at least 8 characters. You&apos;ll sign in again afterward.
-          </p>
 
-          <label className="mt-6 block space-y-1.5 text-sm">
-            <span className="font-medium text-stone-700">New password</span>
+        <div className="mt-6">
+          <Field label="New password">
             <div className="relative">
-              <input
-                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2.5 pr-16 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+              <Input
                 type={showPassword ? "text" : "password"}
                 name="password"
                 autoComplete="new-password"
@@ -107,21 +89,22 @@ export function ResetPasswordForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
+                className="pr-16"
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[var(--fs-leaf)]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-[var(--fs-accent)]"
                 onClick={() => setShowPassword((v) => !v)}
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-          </label>
+          </Field>
+        </div>
 
-          <label className="mt-4 block space-y-1.5 text-sm">
-            <span className="font-medium text-stone-700">Confirm password</span>
-            <input
-              className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2.5 outline-none transition focus:border-[var(--fs-leaf)] focus:bg-white focus:ring-2 focus:ring-[var(--fs-leaf)]/20"
+        <div className="mt-4">
+          <Field label="Confirm password">
+            <Input
               type={showPassword ? "text" : "password"}
               name="confirm"
               autoComplete="new-password"
@@ -130,27 +113,27 @@ export function ResetPasswordForm() {
               required
               minLength={8}
             />
-          </label>
+          </Field>
+        </div>
 
-          {mismatch && (
-            <p className="mt-2 text-sm text-rose-600">Passwords do not match.</p>
-          )}
+        {mismatch && (
+          <p className="mt-2 text-sm font-semibold text-rose-600">Passwords do not match.</p>
+        )}
 
-          <button
-            type="submit"
-            disabled={mutation.isLoading || password.length < 8}
-            className="mt-6 w-full rounded-xl bg-[var(--fs-leaf-deep)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--fs-leaf)] disabled:opacity-60"
-          >
-            {mutation.isLoading ? "Updating…" : "Update password"}
-          </button>
+        <Btn
+          type="submit"
+          disabled={mutation.isLoading || password.length < 8}
+          className="mt-6 w-full !py-3"
+        >
+          {mutation.isLoading ? "Updating…" : "Update password"}
+        </Btn>
 
-          <p className="mt-5 text-center text-sm text-stone-500">
-            <Link href="/login" className="font-medium text-[var(--fs-leaf)] hover:underline">
-              Back to sign in
-            </Link>
-          </p>
-        </form>
-      </main>
-    </div>
+        <p className="mt-5 text-center text-sm font-medium text-[var(--fs-muted)]">
+          <Link href="/login" className="font-extrabold text-[var(--fs-accent)] hover:underline">
+            Back to sign in
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

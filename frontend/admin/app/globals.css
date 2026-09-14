@@ -19,9 +19,9 @@
   --fs-leaf-deep: var(--fs-accent-deep);
   --fs-orchard: #4a3728;
   --fs-mist: #fff1e6;
-  --fs-canvas: #fffaf5;
+  --fs-canvas: #fff8f2;
   --fs-surface: #ffffff;
-  --fs-line: #f3e4d7;
+  --fs-line: #f0e0d2;
   --fs-muted: #8b7355;
   --fs-ok: #57534e;
   --fs-ok-bg: #f5f5f4;
@@ -29,9 +29,10 @@
   --fs-warn-bg: #fff7ed;
   --fs-danger: #b42318;
   --fs-danger-bg: #fef2f2;
-  --fs-radius: 0.875rem;
-  --fs-shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.06);
-  --fs-sidebar-w: 15.5rem;
+  --fs-radius: 1rem;
+  --fs-shadow-sm: 0 4px 18px rgba(249, 115, 22, 0.06);
+  --fs-shadow: 0 12px 36px rgba(74, 55, 40, 0.08);
+  --fs-sidebar-w: 16rem;
   --fs-cream: var(--fs-canvas);
   --background: var(--fs-canvas);
   --foreground: var(--fs-ink);
@@ -45,6 +46,7 @@
   --color-fs-leaf-deep: var(--fs-leaf-deep);
   --color-fs-citrus: var(--fs-citrus);
   --color-fs-mist: var(--fs-mist);
+  --color-fs-accent: var(--fs-accent);
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
 }
@@ -57,23 +59,50 @@ body {
 
 .fs-console {
   min-height: 100dvh;
-  background: var(--fs-canvas);
+  background:
+    radial-gradient(900px 420px at 100% 0%, rgba(251, 146, 60, 0.08), transparent 55%),
+    var(--fs-canvas);
 }
 
 .fs-sidebar {
   width: var(--fs-sidebar-w);
-  background: linear-gradient(180deg, #ea580c 0%, #f97316 50%, #fb923c 100%);
+  background: #ffffff;
+  border-right: 1px solid var(--fs-line);
 }
 
 .fs-brand-mark {
-  background: #fff;
-  color: #ea580c;
+  background: linear-gradient(145deg, #fb923c, #f97316);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.28);
 }
 
 .fs-nav-active {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--fs-mist);
+  color: var(--fs-accent-deep);
+  font-weight: 800;
+}
+
+.fs-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
   color: #fff;
-  box-shadow: inset 3px 0 0 #fff;
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.25);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.fs-btn-primary:hover {
+  filter: brightness(1.04);
+}
+
+.fs-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @keyframes fs-rise {
@@ -93,6 +122,37 @@ body {
 
 .fs-rise-delay {
   animation: fs-rise 0.5s ease-out 0.06s both;
+}
+
+@keyframes fs-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.fs-skeleton {
+  animation: fs-pulse-soft 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, #ffe8d4, #fff4eb, #ffe8d4);
+  background-size: 200% 100%;
+  border-radius: 0.75rem;
+}
+
+@keyframes fs-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(12px, -8px);
+  }
+}
+
+.fs-drift {
+  animation: fs-drift 10s ease-in-out infinite;
 }
 
 body.fs-drawer-open {

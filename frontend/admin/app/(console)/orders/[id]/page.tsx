@@ -12,8 +12,8 @@ import {
   ErrorLine,
   Field,
   Input,
-  LoadingLine,
   PageHeader,
+  PageLoader,
   SectionLabel,
   Select,
   StatusPill,
@@ -74,13 +74,13 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
   const refund = useMutation(() => ordersApi.refund(orderId, "Admin refund"));
 
   if (order.isLoading) {
-    return <LoadingLine label="Loading order…" />;
+    return <PageLoader title="Loading order" detail="Fetching fulfilment status, items, and payment…" />;
   }
   if (order.error || !order.data) {
     return (
       <div className="space-y-3">
         <ErrorLine message={order.error?.message ?? "Order not found"} />
-        <Link href="/orders" className="text-sm text-[var(--fs-leaf)] hover:underline">
+        <Link href="/orders" className="text-sm text-[var(--fs-accent)] hover:underline">
           ← Back to orders
         </Link>
       </div>
@@ -99,7 +99,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
         breadcrumb={
           <Link
             href="/orders"
-            className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
+            className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-accent)]"
           >
             ← Orders
           </Link>
@@ -160,7 +160,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
               <ul className="space-y-3">
                 {[...timeline].reverse().map((event) => (
                   <li key={event.id} className="flex gap-3 text-sm">
-                    <div className="mt-1.5 size-2 shrink-0 rounded-full bg-[var(--fs-leaf)]" />
+                    <div className="mt-1.5 size-2 shrink-0 rounded-full bg-[var(--fs-accent)]" />
                     <div className="min-w-0 flex-1">
                       <p className="font-medium capitalize">
                         {event.from_status ? `${event.from_status} → ` : ""}

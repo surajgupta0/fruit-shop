@@ -72,7 +72,7 @@ function BrandsPanel() {
                   </StatusPill>
                   <button
                     type="button"
-                    className="text-xs text-[var(--fs-leaf)] hover:underline"
+                    className="text-xs text-[var(--fs-accent)] hover:underline"
                     onClick={async () => {
                       try {
                         await catalogApi.updateBrand(b.id, { is_active: !b.is_active });

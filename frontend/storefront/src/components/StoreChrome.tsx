@@ -102,7 +102,10 @@ export function SiteHeader() {
           </form>
           <CartLink />
           {bootstrapping ? (
-            <span className="px-2 text-sm text-[var(--fs-muted)]">…</span>
+            <span
+              className="mx-2 inline-block size-4 animate-spin rounded-full border-2 border-[var(--fs-mist)] border-t-[var(--fs-accent)]"
+              aria-label="Loading"
+            />
           ) : isAuthenticated ? (
             <>
               <Link

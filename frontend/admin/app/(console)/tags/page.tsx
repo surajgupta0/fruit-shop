@@ -63,7 +63,7 @@ function TagsPanel() {
             {list.data.map((t) => (
               <li
                 key={t.id}
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--fs-mist)] px-3 py-1.5 text-sm text-[var(--fs-leaf-deep)]"
+                className="inline-flex items-center gap-2 rounded-full bg-[var(--fs-mist)] px-3 py-1.5 text-sm text-[var(--fs-accent-deep)]"
               >
                 {t.name}
                 <button

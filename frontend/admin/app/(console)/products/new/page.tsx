@@ -172,7 +172,7 @@ function NewProductPanel() {
         breadcrumb={
           <Link
             href="/products"
-            className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-leaf)]"
+            className="mb-2 inline-block text-sm text-[var(--fs-muted)] hover:text-[var(--fs-accent)]"
           >
             ← Products
           </Link>
@@ -195,7 +195,7 @@ function NewProductPanel() {
             onClick={() => setTab(id)}
             className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
               tab === id
-                ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)]"
+                ? "bg-[var(--fs-mist)] text-[var(--fs-accent-deep)]"
                 : "text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
             }`}
           >
@@ -226,7 +226,7 @@ function NewProductPanel() {
                 </Field>
                 <Field label="Description">
                   <textarea
-                    className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2.5 text-sm outline-none focus:border-[var(--fs-leaf)]"
+                    className="w-full rounded-xl border border-[var(--fs-line)] px-3 py-2.5 text-sm outline-none focus:border-[var(--fs-accent)]"
                     rows={4}
                     value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -373,7 +373,7 @@ function NewProductPanel() {
                       }
                       className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
                         on
-                          ? "bg-[var(--fs-mist)] text-[var(--fs-leaf-deep)] ring-[var(--fs-leaf)]/30"
+                          ? "bg-[var(--fs-mist)] text-[var(--fs-accent-deep)] ring-[var(--fs-leaf)]/30"
                           : "bg-white text-[var(--fs-muted)] ring-[var(--fs-line)]"
                       }`}
                     >

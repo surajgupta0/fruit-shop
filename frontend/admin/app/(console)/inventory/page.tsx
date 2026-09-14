@@ -14,6 +14,7 @@ import {
   Input,
   LoadingLine,
   PageHeader,
+  StatCard,
   StatusPill,
   Surface,
 } from "@/src/console/ui";
@@ -181,20 +182,23 @@ function InventoryPanel() {
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "Tracked SKUs", value: stats.tracked },
-          { label: "Low stock", value: stats.low },
-          { label: "Out of stock", value: stats.out },
-        ].map((s) => (
-          <Surface key={s.label} padded>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--fs-muted)]">
-              {s.label}
-            </p>
-            <p className="mt-1 font-[family-name:var(--font-fraunces)] text-2xl">
-              {levels.isLoading || lowStock.isLoading ? "…" : s.value}
-            </p>
-          </Surface>
-        ))}
+        <StatCard
+          label="Tracked SKUs"
+          value={stats.tracked}
+          loading={levels.isLoading || lowStock.isLoading}
+        />
+        <StatCard
+          label="Low stock"
+          value={stats.low}
+          loading={levels.isLoading || lowStock.isLoading}
+          tone={stats.low > 0 ? "warn" : "neutral"}
+        />
+        <StatCard
+          label="Out of stock"
+          value={stats.out}
+          loading={levels.isLoading || lowStock.isLoading}
+          tone={stats.out > 0 ? "danger" : "neutral"}
+        />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -225,7 +229,7 @@ function InventoryPanel() {
               }}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition ${
                 filter === value
-                  ? "bg-[var(--fs-leaf-deep)] text-white ring-[var(--fs-leaf-deep)]"
+                  ? "bg-[var(--fs-accent-deep)] text-white ring-[var(--fs-leaf-deep)]"
                   : "bg-white text-[var(--fs-muted)] ring-[var(--fs-line)] hover:text-[var(--fs-ink)]"
               }`}
             >
@@ -271,7 +275,7 @@ function InventoryPanel() {
                           <td className="px-4 py-3">
                             <Link
                               href={`/products/${row.product_id}`}
-                              className="font-medium hover:text-[var(--fs-leaf)]"
+                              className="font-medium hover:text-[var(--fs-accent)]"
                             >
                               {row.product_name}
                             </Link>
@@ -291,7 +295,7 @@ function InventoryPanel() {
                             <div className="flex flex-wrap justify-end gap-1">
                               <button
                                 type="button"
-                                className="rounded-md px-2 py-1 text-xs font-medium text-[var(--fs-leaf-deep)] hover:bg-[var(--fs-mist)]"
+                                className="rounded-md px-2 py-1 text-xs font-medium text-[var(--fs-accent-deep)] hover:bg-[var(--fs-mist)]"
                                 onClick={() => openAction(row, "receive")}
                               >
                                 Receive
@@ -349,7 +353,7 @@ function InventoryPanel() {
 
         <div className="space-y-4">
           <Surface padded>
-            <h2 className="font-[family-name:var(--font-fraunces)] text-lg">Stock action</h2>
+            <h2 className="text-lg font-extrabold">Stock action</h2>
             {!selected ? (
               <p className="mt-2 text-sm text-[var(--fs-muted)]">
                 Select Receive, Adjust, or Set on a SKU to update stock with a reason.
@@ -375,7 +379,7 @@ function InventoryPanel() {
                       onClick={() => setAction(mode)}
                       className={`rounded-full px-3 py-1 text-xs font-medium capitalize ring-1 ring-inset ${
                         action === mode
-                          ? "bg-[var(--fs-leaf-deep)] text-white ring-[var(--fs-leaf-deep)]"
+                          ? "bg-[var(--fs-accent-deep)] text-white ring-[var(--fs-leaf-deep)]"
                           : "bg-white text-[var(--fs-muted)] ring-[var(--fs-line)]"
                       }`}
                     >
@@ -436,7 +440,7 @@ function InventoryPanel() {
 
           <Surface>
             <div className="border-b border-[var(--fs-line)] px-4 py-3">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-lg">
+              <h2 className="text-lg font-extrabold">
                 {selected ? "SKU movements" : "Recent movements"}
               </h2>
             </div>
@@ -455,7 +459,7 @@ function InventoryPanel() {
                           {movementLabel(m.movement_type)}{" "}
                           <span
                             className={
-                              m.quantity_delta < 0 ? "text-rose-600" : "text-[var(--fs-leaf-deep)]"
+                              m.quantity_delta < 0 ? "text-rose-600" : "text-[var(--fs-accent-deep)]"
                             }
                           >
                             {m.quantity_delta > 0 ? "+" : ""}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@fruitshop/web-core";
 import type { ReactNode } from "react";
 
-import { Surface } from "@/src/console/ui";
+import { LoadingLine, Surface } from "@/src/console/ui";
 
 type Props = {
   /** Single required permission */
@@ -19,16 +19,24 @@ type Props = {
 
 function Denied({ codes }: { codes: string[] }) {
   return (
-    <Surface padded className="max-w-lg border-[var(--fs-warn)]/30 bg-[var(--fs-warn-bg)]">
-      <p className="font-medium text-[var(--fs-ink)]">You don’t have access to this panel.</p>
-      <p className="mt-1 text-sm text-[var(--fs-warn)]">
-        Required: {codes.join(" or ")}
+    <Surface padded className="mx-auto max-w-lg border-amber-200 bg-[var(--fs-warn-bg)]">
+      <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--fs-warn)]">
+        Access denied
+      </p>
+      <p className="mt-2 text-lg font-extrabold text-[var(--fs-ink)]">
+        You don’t have access to this panel
+      </p>
+      <p className="mt-2 text-sm font-medium text-[var(--fs-muted)]">
+        Required permission: <span className="font-bold text-[var(--fs-ink)]">{codes.join(" or ")}</span>
+      </p>
+      <p className="mt-1 text-sm font-medium text-[var(--fs-muted)]">
+        Ask an admin to update your role if you need this screen.
       </p>
       <Link
         href="/"
-        className="mt-4 inline-block text-sm font-medium text-[var(--fs-leaf)] hover:underline"
+        className="mt-5 inline-block text-sm font-extrabold text-[var(--fs-accent)] hover:underline"
       >
-        Back to overview
+        ← Back to overview
       </Link>
     </Surface>
   );
@@ -44,7 +52,11 @@ export function RequirePermission({
   const { hasPermission, bootstrapping } = useAuth();
 
   if (bootstrapping) {
-    return <p className="text-sm text-[var(--fs-muted)]">Checking access…</p>;
+    return (
+      <Surface>
+        <LoadingLine label="Checking access…" />
+      </Surface>
+    );
   }
 
   const codes =

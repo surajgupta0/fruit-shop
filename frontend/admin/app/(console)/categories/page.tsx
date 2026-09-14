@@ -157,7 +157,7 @@ function CategoriesPanel() {
                 </StatusPill>
                 <button
                   type="button"
-                  className="text-xs text-[var(--fs-leaf)] hover:underline"
+                  className="text-xs text-[var(--fs-accent)] hover:underline"
                   onClick={() => {
                     setEditing(c);
                     setEditImage(c.image_url || "");
@@ -167,7 +167,7 @@ function CategoriesPanel() {
                 </button>
                 <button
                   type="button"
-                  className="text-xs text-[var(--fs-leaf)] hover:underline"
+                  className="text-xs text-[var(--fs-accent)] hover:underline"
                   onClick={async () => {
                     try {
                       await catalogApi.updateCategory(c.id, { is_active: !c.is_active });

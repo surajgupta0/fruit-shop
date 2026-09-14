@@ -64,21 +64,21 @@ function Kpi({
       : tone === "warn"
         ? "border-amber-200/80"
         : tone === "ok"
-          ? "border-[var(--fs-leaf)]/25"
+          ? "border-[var(--fs-accent)]/25"
           : "border-[var(--fs-line)]";
 
   const body = loading ? (
     <div className="space-y-3" aria-hidden>
-      <div className="h-2.5 w-20 animate-pulse rounded-full bg-[var(--fs-mist)]" />
-      <div className="h-8 w-14 animate-pulse rounded-md bg-[var(--fs-mist)]" />
-      <div className="h-2 w-28 animate-pulse rounded-full bg-[var(--fs-mist)]" />
+      <div className="fs-skeleton h-2.5 w-20" />
+      <div className="fs-skeleton h-8 w-14" />
+      <div className="fs-skeleton h-2 w-28" />
     </div>
   ) : (
     <>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
+      <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--fs-muted)]">
         {label}
       </p>
-      <p className="mt-2 font-[family-name:var(--font-fraunces)] text-3xl tracking-tight text-[var(--fs-ink)]">
+      <p className="mt-2 text-3xl font-extrabold tracking-tight text-[var(--fs-ink)]">
         {value}
       </p>
       {hint ? <p className="mt-1 text-xs leading-snug text-[var(--fs-muted)]">{hint}</p> : null}
@@ -89,7 +89,7 @@ function Kpi({
     return (
       <Link
         href={href}
-        className={`block rounded-[var(--fs-radius)] border bg-white p-4 shadow-[var(--fs-shadow-sm)] transition hover:border-[var(--fs-leaf)]/40 ${toneBorder}`}
+        className={`block rounded-[var(--fs-radius)] border bg-white p-4 shadow-[var(--fs-shadow-sm)] transition hover:border-[var(--fs-accent)]/40 ${toneBorder}`}
       >
         {body}
       </Link>
@@ -121,9 +121,11 @@ function PipelineStep({
   const content = (
     <>
       {loading ? (
-        <span className="mx-auto block h-7 w-10 animate-pulse rounded-md bg-[var(--fs-mist)]" />
+        <span className="mx-auto block h-7 w-10">
+          <span className="fs-skeleton block h-7 w-10" />
+        </span>
       ) : (
-        <span className="font-[family-name:var(--font-fraunces)] text-2xl tabular-nums text-[var(--fs-ink)]">
+        <span className="text-2xl font-extrabold tabular-nums text-[var(--fs-ink)]">
           {count}
         </span>
       )}
@@ -137,7 +139,7 @@ function PipelineStep({
     emphasize
       ? "border-amber-200 bg-amber-50/60"
       : "border-[var(--fs-line)] bg-[var(--fs-mist)]/30"
-  } ${loading ? "" : "hover:border-[var(--fs-leaf)]/40"}`;
+  } ${loading ? "" : "hover:border-[var(--fs-accent)]/40"}`;
 
   if (loading) {
     return (
@@ -613,7 +615,7 @@ export default function ConsoleOverviewPage() {
                     {item.severity !== "ok" && (
                       <Link
                         href={item.href}
-                        className="mt-2 inline-block text-xs font-semibold text-[var(--fs-leaf)] hover:underline"
+                        className="mt-2 inline-block text-xs font-semibold text-[var(--fs-accent)] hover:underline"
                       >
                         {item.cta} →
                       </Link>
@@ -680,7 +682,7 @@ export default function ConsoleOverviewPage() {
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
               <SectionLabel>Latest orders</SectionLabel>
-              <Link href="/orders" className="text-sm text-[var(--fs-leaf)] hover:underline">
+              <Link href="/orders" className="text-sm text-[var(--fs-accent)] hover:underline">
                 All orders →
               </Link>
             </div>
@@ -710,7 +712,7 @@ export default function ConsoleOverviewPage() {
                           <td className="px-4 py-3">
                             <Link
                               href={`/orders/${order.id}`}
-                              className="font-medium hover:text-[var(--fs-leaf)]"
+                              className="font-medium hover:text-[var(--fs-accent)]"
                             >
                               {order.order_number}
                             </Link>
@@ -749,7 +751,7 @@ export default function ConsoleOverviewPage() {
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
               <SectionLabel>Stock risk</SectionLabel>
-              <Link href="/inventory" className="text-sm text-[var(--fs-leaf)] hover:underline">
+              <Link href="/inventory" className="text-sm text-[var(--fs-accent)] hover:underline">
                 Inventory →
               </Link>
             </div>
@@ -779,7 +781,7 @@ export default function ConsoleOverviewPage() {
                           <td className="px-4 py-3">
                             <Link
                               href={`/products/${row.product_id}`}
-                              className="font-medium hover:text-[var(--fs-leaf)]"
+                              className="font-medium hover:text-[var(--fs-accent)]"
                             >
                               {row.product_name}
                             </Link>

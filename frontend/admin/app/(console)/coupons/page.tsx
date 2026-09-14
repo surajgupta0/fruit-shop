@@ -238,7 +238,7 @@ function CouponsPanel() {
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
-                          className="mr-3 text-xs text-[var(--fs-leaf)] hover:underline"
+                          className="mr-3 text-xs text-[var(--fs-accent)] hover:underline"
                           onClick={async () => {
                             try {
                               await couponsApi.update(c.id, { is_active: !c.is_active });
