@@ -15,6 +15,7 @@ from app.modules.cart.models import Cart
 from app.modules.cart import service as cart_service
 from app.modules.catalog.models import Product, ProductVariant
 from app.modules.coupon import service as coupon_service
+from app.modules.inventory import service as inventory_service
 from app.modules.notification import service as notification_service
 from app.modules.order.helpers import get_order_or_404, load_variant_bundle, parse_uuid, restore_stock
 from app.modules.order.models import (
@@ -183,8 +184,13 @@ async def checkout(
         session.add(order_item)
 
         if product.track_inventory:
-            variant.stock_qty = max(0, variant.stock_qty - cart_item.quantity)
-            stamp_update(variant, aid)
+            await inventory_service.commit_sale(
+                order_id=order.id,
+                variant_id=variant.id,
+                quantity=cart_item.quantity,
+                session=session,
+                actor_id=aid,
+            )
 
     if coupon is not None:
         await coupon_service.redeem_coupon(

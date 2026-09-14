@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.mixins import stamp_update
 from app.modules.catalog.models import ProductVariant
+from app.modules.inventory import service as inventory_service
 from app.modules.order.models import Order
 
 
@@ -56,17 +56,11 @@ async def restore_stock(
     *,
     actor_id: uuid.UUID | None,
 ) -> None:
+    lines: list[tuple[uuid.UUID, int]] = []
     for item in order.items:
         if item.variant_id is None:
             continue
-        variant = (
-            await session.execute(
-                select(ProductVariant)
-                .where(ProductVariant.id == item.variant_id)
-                .options(selectinload(ProductVariant.product))
-            )
-        ).scalar_one_or_none()
-        if variant is None or not variant.product.track_inventory:
-            continue
-        variant.stock_qty += item.quantity
-        stamp_update(variant, actor_id)
+        lines.append((item.variant_id, item.quantity))
+    await inventory_service.restore_order_stock(
+        order.id, lines, session, actor_id=actor_id
+    )

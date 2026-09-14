@@ -61,7 +61,27 @@ export type ProductVariant = {
   is_default: boolean;
   is_active: boolean;
   stock_qty: number;
+  reserved_qty?: number;
+  available_qty?: number;
+  inventory_policy?: string;
 };
+
+/** Sellable units left (falls back to on-hand). */
+export function variantAvailableQty(variant: ProductVariant): number {
+  if (typeof variant.available_qty === "number") return variant.available_qty;
+  return variant.stock_qty;
+}
+
+export function variantIsPurchasable(
+  variant: ProductVariant,
+  opts?: { trackInventory?: boolean },
+): boolean {
+  const trackInventory = opts?.trackInventory !== false;
+  if (!variant.is_active) return false;
+  if (!trackInventory) return true;
+  if (variant.inventory_policy === "continue") return true;
+  return variantAvailableQty(variant) > 0;
+}
 
 export type ProductImage = {
   id: string;
@@ -82,6 +102,7 @@ export type ProductDetail = {
   is_featured: boolean;
   is_organic: boolean;
   is_perishable: boolean;
+  track_inventory?: boolean;
   unit_label: string | null;
   badge_label: string | null;
   min_order_qty: number;

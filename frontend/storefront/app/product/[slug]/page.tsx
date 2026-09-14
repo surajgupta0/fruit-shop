@@ -7,7 +7,7 @@ import { useAuth, useMutation, useQuery } from "@fruitshop/web-core";
 
 import { ProductGrid } from "@/src/components/ProductCard";
 import { StoreShell } from "@/src/components/StoreChrome";
-import { catalogApi, formatMoney } from "@/src/modules/catalog/api";
+import { catalogApi, formatMoney, variantAvailableQty, variantIsPurchasable } from "@/src/modules/catalog/api";
 import { cartApi } from "@/src/modules/orders/api";
 
 export default function ProductPage() {
@@ -37,6 +37,22 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const selected =
     variants.find((v) => v.id === (variantId ?? defaultVariant?.id)) ?? defaultVariant;
+
+  const trackInventory = detail.data?.track_inventory !== false;
+  const canBuy = selected
+    ? variantIsPurchasable(selected, { trackInventory })
+    : false;
+  const available = selected ? variantAvailableQty(selected) : 0;
+  const maxQty = (() => {
+    if (!detail.data || !selected) return 1;
+    const caps = [detail.data.max_order_qty].filter(
+      (n): n is number => typeof n === "number" && n > 0,
+    );
+    if (trackInventory && selected.inventory_policy !== "continue") {
+      caps.push(Math.max(available, detail.data.min_order_qty || 1));
+    }
+    return caps.length ? Math.min(...caps) : undefined;
+  })();
 
   const addToCart = useMutation(() =>
     cartApi.addItem(selected!.id, quantity),
@@ -176,14 +192,18 @@ export default function ProductPage() {
                       }`}
                     >
                       {v.name}
-                      {v.stock_qty <= 0 ? " · Sold out" : ""}
+                      {!variantIsPurchasable(v, {
+                        trackInventory: detail.data?.track_inventory !== false,
+                      })
+                        ? " · Sold out"
+                        : ""}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {selected && selected.stock_qty > 0 && (
+            {selected && canBuy && (
               <div className="mt-5">
                 <p className="text-sm font-medium text-stone-700">Quantity</p>
                 <div className="mt-2 inline-flex items-center rounded-xl border border-[var(--fs-line)]">
@@ -199,9 +219,11 @@ export default function ProductPage() {
                     type="button"
                     className="px-3 py-2 text-lg text-[var(--fs-muted)]"
                     onClick={() =>
-                      setQuantity((q) =>
-                        p.max_order_qty ? Math.min(p.max_order_qty, q + 1) : q + 1,
-                      )
+                      setQuantity((q) => {
+                        const next = q + 1;
+                        if (maxQty != null) return Math.min(maxQty, next);
+                        return next;
+                      })
                     }
                   >
                     +
@@ -211,13 +233,15 @@ export default function ProductPage() {
             )}
 
             <p className="mt-4 text-sm text-[var(--fs-muted)]">
-              {selected && selected.stock_qty > 0
-                ? "In stock — ready to order"
+              {canBuy
+                ? trackInventory && selected && selected.inventory_policy !== "continue"
+                  ? `${available} available — ready to order`
+                  : "In stock — ready to order"
                 : "Currently out of stock"}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {selected && selected.stock_qty > 0 ? (
+              {canBuy ? (
                 isAuthenticated ? (
                   <>
                     <button

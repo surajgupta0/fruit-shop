@@ -114,6 +114,11 @@ export default function CartPage() {
                         Not enough stock — adjust quantity
                       </p>
                     )}
+                    {item.in_stock && item.stock_qty != null && item.stock_qty <= 5 && (
+                      <p className="mt-1 text-xs text-[var(--fs-leaf-deep)]">
+                        Only {item.stock_qty} left
+                      </p>
+                    )}
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       <div className="flex items-center rounded-xl border border-[var(--fs-line)]">
                         <button
@@ -139,8 +144,14 @@ export default function CartPage() {
                         </span>
                         <button
                           type="button"
-                          className="px-3 py-1.5 text-lg text-[var(--fs-muted)] hover:text-[var(--fs-ink)]"
+                          className="px-3 py-1.5 text-lg text-[var(--fs-muted)] hover:text-[var(--fs-ink)] disabled:opacity-40"
+                          disabled={
+                            item.stock_qty != null && item.quantity >= item.stock_qty
+                          }
                           onClick={async () => {
+                            if (item.stock_qty != null && item.quantity >= item.stock_qty) {
+                              return;
+                            }
                             try {
                               await updateQty.mutate({
                                 itemId: item.id,

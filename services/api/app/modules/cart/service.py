@@ -11,6 +11,7 @@ from app.core.mixins import stamp_create, stamp_update
 from app.modules.cart.models import Cart, CartItem
 from app.modules.cart.schemas import CartItemResponse, CartResponse
 from app.modules.catalog.models import Product, ProductImage, ProductStatus, ProductVariant
+from app.modules.inventory.service import available_qty
 from app.modules.order.pricing import CURRENCY, cart_totals, price_line
 
 
@@ -101,7 +102,7 @@ async def _build_cart_response(cart: Cart, session: AsyncSession) -> CartRespons
                 primary_image_url=_primary_image(product),
                 unit_label=product.unit_label,
                 in_stock=in_stock,
-                stock_qty=variant.stock_qty if product.track_inventory else None,
+                stock_qty=available_qty(variant) if product.track_inventory else None,
                 created_at=item.created_at,
                 updated_at=item.updated_at,
                 created_by=item.created_by,

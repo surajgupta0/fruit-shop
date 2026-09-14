@@ -28,7 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/inventory",
     label: "Inventory",
-    permission: P.CATALOG_MANAGE,
+    permission: P.INVENTORY_MANAGE,
     description: "Stock levels and low-stock alerts",
   },
   {

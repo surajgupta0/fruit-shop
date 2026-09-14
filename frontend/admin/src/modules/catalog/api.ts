@@ -44,6 +44,8 @@ export type ProductVariant = {
   is_default: boolean;
   is_active: boolean;
   stock_qty: number;
+  reserved_qty?: number;
+  available_qty?: number;
   low_stock_threshold: number;
   inventory_policy: string;
 };

@@ -281,6 +281,8 @@ class ProductVariantResponse(AuditFields):
     is_active: bool
     sort_order: int
     stock_qty: int
+    reserved_qty: int = 0
+    available_qty: int = 0
     low_stock_threshold: int
     inventory_policy: str
 

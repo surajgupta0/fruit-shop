@@ -6,6 +6,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from fastapi import HTTPException, status
 
 from app.modules.catalog.models import InventoryPolicy, Product, ProductStatus, ProductVariant
+from app.modules.inventory.service import available_qty
+
 
 FREE_SHIPPING_THRESHOLD = Decimal("999")
 SHIPPING_FEE = Decimal("99")
@@ -50,7 +52,7 @@ def check_stock(product: Product, variant: ProductVariant, quantity: int) -> boo
         return True
     if variant.inventory_policy == InventoryPolicy.continue_:
         return True
-    return variant.stock_qty >= quantity
+    return available_qty(variant) >= quantity
 
 
 def assert_purchasable(product: Product, variant: ProductVariant, quantity: int) -> None:
@@ -62,7 +64,7 @@ def assert_purchasable(product: Product, variant: ProductVariant, quantity: int)
     if not check_stock(product, variant, quantity):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail=f"Only {variant.stock_qty} left in stock for {variant.name}",
+            detail=f"Only {available_qty(variant)} left in stock for {variant.name}",
         )
 
 

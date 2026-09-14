@@ -405,6 +405,7 @@ class ProductVariant(AuditMixin, Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     stock_qty: Mapped[int] = mapped_column(Integer, default=0)
+    reserved_qty: Mapped[int] = mapped_column(Integer, default=0)
     low_stock_threshold: Mapped[int] = mapped_column(Integer, default=5)
     inventory_policy: Mapped[InventoryPolicy] = mapped_column(
         Enum(

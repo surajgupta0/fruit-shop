@@ -7,6 +7,7 @@ import { visibleNav } from "@/src/console/nav";
 import { P } from "@/src/console/permissions";
 import { PageHeader, SectionLabel, StatusPill, Surface } from "@/src/console/ui";
 import { catalogApi } from "@/src/modules/catalog/api";
+import { inventoryApi } from "@/src/modules/inventory/api";
 import { ordersApi } from "@/src/modules/orders/api";
 
 function StatCard({
@@ -47,6 +48,7 @@ function StatCard({
 export default function ConsoleOverviewPage() {
   const { user, hasPermission } = useAuth();
   const canCatalog = hasPermission(P.CATALOG_MANAGE);
+  const canInventory = hasPermission(P.INVENTORY_MANAGE);
   const canOrders = hasPermission(P.ORDERS_MANAGE);
   const panels = visibleNav(hasPermission).filter((item) => item.href !== "/");
 
@@ -95,38 +97,9 @@ export default function ConsoleOverviewPage() {
   );
 
   const inventoryPreview = useQuery(
-    async () => {
-      const list = allProducts.data?.items ?? [];
-      const details = await Promise.all(
-        list.slice(0, 25).map((p) => catalogApi.getProduct(p.id).catch(() => null)),
-      );
-      const rows: Array<{
-        productId: string;
-        productName: string;
-        sku: string;
-        stock: number;
-        threshold: number;
-        variantId: string;
-      }> = [];
-      for (const d of details) {
-        if (!d) continue;
-        for (const v of d.variants) {
-          if (v.stock_qty <= v.low_stock_threshold) {
-            rows.push({
-              productId: d.id,
-              productName: d.name,
-              sku: v.sku,
-              stock: v.stock_qty,
-              threshold: v.low_stock_threshold,
-              variantId: v.id,
-            });
-          }
-        }
-      }
-      return rows.sort((a, b) => a.stock - b.stock);
-    },
-    [allProducts.data],
-    { enabled: canCatalog && Boolean(allProducts.data) },
+    () => inventoryApi.listLowStock({ page: 1, page_size: 12 }),
+    [],
+    { enabled: canInventory },
   );
 
   return (
@@ -172,12 +145,19 @@ export default function ConsoleOverviewPage() {
               href="/categories"
             />
             <StatCard label="Brands" value={brands.data?.length ?? "—"} href="/brands" />
-            <StatCard
-              label="Low stock SKUs"
-              value={inventoryPreview.data?.length ?? (inventoryPreview.isLoading ? "…" : "—")}
-              hint="Needs restock attention"
-              href="/inventory"
-            />
+            {canInventory ? (
+              <StatCard
+                label="Low stock SKUs"
+                value={
+                  inventoryPreview.data?.total ??
+                  (inventoryPreview.isLoading ? "…" : "—")
+                }
+                hint="Needs restock attention"
+                href="/inventory"
+              />
+            ) : (
+              <StatCard label="Products sample" value={allProducts.data?.total ?? "—"} href="/products" />
+            )}
           </div>
         </section>
       )}
@@ -207,7 +187,7 @@ export default function ConsoleOverviewPage() {
         </section>
       )}
 
-      {canCatalog && (
+      {canInventory && (
         <section>
           <div className="mb-3 flex items-end justify-between gap-3">
             <SectionLabel>Stock alerts</SectionLabel>
@@ -217,40 +197,40 @@ export default function ConsoleOverviewPage() {
           </div>
           <Surface>
             {inventoryPreview.isLoading && (
-              <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">Scanning stock…</p>
+              <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">Loading stock alerts…</p>
             )}
-            {inventoryPreview.data && inventoryPreview.data.length === 0 && (
+            {inventoryPreview.data && inventoryPreview.data.items.length === 0 && (
               <p className="px-5 py-8 text-sm text-[var(--fs-muted)]">
-                No low-stock variants in the latest active products sample.
+                No low-stock variants right now.
               </p>
             )}
-            {inventoryPreview.data && inventoryPreview.data.length > 0 && (
+            {inventoryPreview.data && inventoryPreview.data.items.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-[var(--fs-line)] bg-[var(--fs-mist)]/50 text-[11px] uppercase tracking-wide text-[var(--fs-muted)]">
                       <th className="px-4 py-3 font-semibold">Product</th>
                       <th className="px-4 py-3 font-semibold">SKU</th>
-                      <th className="px-4 py-3 font-semibold">Stock</th>
+                      <th className="px-4 py-3 font-semibold">Available</th>
                       <th className="px-4 py-3 font-semibold">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--fs-line)]">
-                    {inventoryPreview.data.slice(0, 8).map((row) => (
-                      <tr key={row.variantId} className="hover:bg-[var(--fs-mist)]/30">
+                    {inventoryPreview.data.items.slice(0, 8).map((row) => (
+                      <tr key={row.variant_id} className="hover:bg-[var(--fs-mist)]/30">
                         <td className="px-4 py-3">
                           <Link
-                            href={`/products/${row.productId}`}
+                            href={`/products/${row.product_id}`}
                             className="font-medium hover:text-[var(--fs-leaf)]"
                           >
-                            {row.productName}
+                            {row.product_name}
                           </Link>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs">{row.sku}</td>
-                        <td className="px-4 py-3">{row.stock}</td>
+                        <td className="px-4 py-3">{row.available_qty}</td>
                         <td className="px-4 py-3">
-                          <StatusPill tone={row.stock === 0 ? "danger" : "warn"}>
-                            {row.stock === 0 ? "Out of stock" : "Low"}
+                          <StatusPill tone={row.is_out_of_stock ? "danger" : "warn"}>
+                            {row.is_out_of_stock ? "Out of stock" : "Low"}
                           </StatusPill>
                         </td>
                       </tr>

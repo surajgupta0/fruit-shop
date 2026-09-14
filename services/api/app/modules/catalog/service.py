@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.mixins import stamp_create, stamp_update
+from app.modules.inventory.models import InventoryReferenceType
+from app.modules.inventory.service import available_qty, record_opening_stock, set_stock
+from app.modules.inventory.schemas import InventorySetRequest
 from app.modules.catalog.models import (
     Brand,
     Category,
@@ -411,6 +414,8 @@ def _variant_response(v: ProductVariant) -> ProductVariantResponse:
         if hasattr(v.inventory_policy, "value")
         else str(v.inventory_policy)
     )
+    data.reserved_qty = int(getattr(v, "reserved_qty", 0) or 0)
+    data.available_qty = available_qty(v)
     return data
 
 
@@ -423,10 +428,10 @@ def _image_response(i: ProductImage) -> ProductImageResponse:
 def to_summary(product: Product) -> ProductSummaryResponse:
     active_variants = [v for v in product.variants if v.is_active]
     prices = [v.price for v in active_variants]
-    total_stock = sum(v.stock_qty for v in active_variants)
+    total_stock = sum(available_qty(v) for v in active_variants)
     if product.track_inventory:
         in_stock = any(
-            v.stock_qty > 0 or v.inventory_policy == InventoryPolicy.continue_
+            available_qty(v) > 0 or v.inventory_policy == InventoryPolicy.continue_
             for v in active_variants
         )
     else:
@@ -724,6 +729,10 @@ async def create_product(
         session.add(relation)
 
     await session.flush()
+    # Opening stock ledger entries for created variants
+    product_loaded = await _get_product(product.id, session)
+    for variant in product_loaded.variants:
+        await record_opening_stock(variant, session, actor_id=actor)
     return to_detail(await _get_product(product.id, session))
 
 
@@ -1003,6 +1012,7 @@ async def add_variant(
     stamp_create(variant, _actor(actor_id))
     session.add(variant)
     await session.flush()
+    await record_opening_stock(variant, session, actor_id=_actor(actor_id))
     return _variant_response(variant)
 
 
@@ -1032,10 +1042,26 @@ async def update_variant(
     if data.get("is_default"):
         await _clear_default_variants(product.id, session)
 
+    stock_qty = data.pop("stock_qty", None)
     for key, value in data.items():
         setattr(variant, key, value)
     stamp_update(variant, _actor(actor_id))
     await session.flush()
+
+    if stock_qty is not None:
+        await set_stock(
+            InventorySetRequest(
+                variant_id=variant.id,
+                stock_qty=stock_qty,
+                reason="Catalog stock update",
+            ),
+            session,
+            actor_id=actor_id,
+            reference_type=InventoryReferenceType.catalog,
+            reference_id=variant.id,
+        )
+        await session.refresh(variant)
+
     return _variant_response(variant)
 
 

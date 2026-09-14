@@ -485,7 +485,8 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                     <th className="px-4 py-3">SKU</th>
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Price</th>
-                    <th className="px-4 py-3">Stock</th>
+                    <th className="px-4 py-3">On hand</th>
+                    <th className="px-4 py-3">Available</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -501,6 +502,7 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                           min={0}
                           className="w-20 rounded-lg border border-[var(--fs-line)] px-2 py-1"
                           defaultValue={v.stock_qty}
+                          key={`${v.id}-${v.stock_qty}`}
                           onBlur={async (e) => {
                             const next = Number(e.target.value);
                             if (Number.isNaN(next) || next === v.stock_qty) return;
@@ -515,7 +517,19 @@ function ProductDetailPanel({ productId }: { productId: string }) {
                           }}
                         />
                       </td>
+                      <td className="px-4 py-3 text-sm tabular-nums text-[var(--fs-muted)]">
+                        {v.available_qty ?? v.stock_qty}
+                        {(v.reserved_qty ?? 0) > 0 ? (
+                          <span className="ml-1 text-[11px]">(res {v.reserved_qty})</span>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-3 text-right">
+                        <Link
+                          href="/inventory"
+                          className="mr-3 text-xs text-[var(--fs-leaf)] hover:underline"
+                        >
+                          Ledger
+                        </Link>
                         <button
                           type="button"
                           className="text-xs text-rose-600 hover:underline"

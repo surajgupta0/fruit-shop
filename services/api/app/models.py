@@ -15,6 +15,7 @@ from app.modules.catalog.models import (  # noqa: F401
     Tag,
 )
 from app.modules.coupon.models import Coupon, CouponRedemption  # noqa: F401
+from app.modules.inventory.models import InventoryMovement  # noqa: F401
 from app.modules.notification.models import NotificationLog  # noqa: F401
 from app.modules.order.models import Order, OrderItem  # noqa: F401
 from app.modules.payment.models import Payment  # noqa: F401
@@ -43,6 +44,7 @@ __all__ = [
     "ProductRelation",
     "Coupon",
     "CouponRedemption",
+    "InventoryMovement",
     "NotificationLog",
     "Cart",
     "CartItem",

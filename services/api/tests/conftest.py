@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["JWT_SECRET"] = "test-secret-key-at-least-32-chars!!"
+os.environ["OTP_STATIC_CODE"] = "123456"
 
 
 @pytest.fixture(autouse=True)

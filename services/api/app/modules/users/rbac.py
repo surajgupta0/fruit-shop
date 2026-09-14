@@ -14,7 +14,7 @@ USERS_DEACTIVATE = "users:deactivate"
 ROLES_LIST = "roles:list"
 ROLES_MANAGE = "roles:manage"
 
-# Future module placeholders (seeded for later)
+# Module permissions
 CATALOG_MANAGE = "catalog:manage"
 INVENTORY_MANAGE = "inventory:manage"
 ORDERS_MANAGE = "orders:manage"
