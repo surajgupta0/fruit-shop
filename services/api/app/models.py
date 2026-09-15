@@ -14,6 +14,12 @@ from app.modules.catalog.models import (  # noqa: F401
     ProductVariant,
     Tag,
 )
+from app.modules.cms.models import (  # noqa: F401
+    CmsBanner,
+    CmsContentBlock,
+    CmsPage,
+    CmsSnippet,
+)
 from app.modules.coupon.models import Coupon, CouponRedemption  # noqa: F401
 from app.modules.inventory.models import InventoryMovement  # noqa: F401
 from app.modules.notification.models import NotificationLog  # noqa: F401
@@ -54,4 +60,8 @@ __all__ = [
     "OrderStatusEvent",
     "Payment",
     "Review",
+    "CmsBanner",
+    "CmsPage",
+    "CmsContentBlock",
+    "CmsSnippet",
 ]

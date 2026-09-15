@@ -6,6 +6,7 @@ import { useAuth, useQuery } from "@fruitshop/web-core";
 import { FormEvent, useEffect, useState, type ReactNode } from "react";
 
 import { cartApi } from "@/src/modules/orders/api";
+import { cmsApi } from "@/src/modules/cms/api";
 
 function FruitMark() {
   return (
@@ -25,10 +26,26 @@ const NAV = [
 ] as const;
 
 export function PromoBar() {
+  const snippet = useQuery(() => cmsApi.getSnippet("announcement_bar"), []);
+  const text =
+    snippet.data?.body ||
+    snippet.data?.title ||
+    "Fresh fruit packed after you order · Phone OTP checkout · Delivery across select cities";
+  const href = snippet.data?.href;
+  const label = snippet.data?.href_label;
+
   return (
     <div className="fs-promo-bar text-center text-[12px] font-semibold sm:text-[13px]">
       <p className="px-4 py-2.5">
-        Fresh fruit packed after you order · Phone OTP checkout · Delivery across select cities
+        {text}
+        {href && label ? (
+          <>
+            {" · "}
+            <Link href={href} className="underline underline-offset-2 hover:opacity-90">
+              {label}
+            </Link>
+          </>
+        ) : null}
       </p>
     </div>
   );
@@ -228,6 +245,16 @@ export function StoreFooter() {
             <li>Same-day in select cities</li>
             <li>Phone OTP login — no password</li>
             <li>Packed for freshness</li>
+            <li>
+              <Link href="/pages/about" className="hover:text-[var(--fs-accent)]">
+                About us
+              </Link>
+            </li>
+            <li>
+              <Link href="/pages/shipping" className="hover:text-[var(--fs-accent)]">
+                Shipping
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

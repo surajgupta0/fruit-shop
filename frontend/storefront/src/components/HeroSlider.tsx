@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@fruitshop/web-core";
+
+import { cmsApi, type CmsBanner } from "@/src/modules/cms/api";
 
 export type HeroSlide = {
   id: string;
@@ -11,12 +14,12 @@ export type HeroSlide = {
   description: string;
   primaryHref: string;
   primaryLabel: string;
-  secondaryHref: string;
-  secondaryLabel: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
 };
 
-/** Stable Unsplash fruit photos (avoid broken IDs) */
-const SLIDES: HeroSlide[] = [
+/** Fallback when CMS has no active home_hero banners */
+const FALLBACK_SLIDES: HeroSlide[] = [
   {
     id: "seasonal",
     image:
@@ -56,25 +59,66 @@ const SLIDES: HeroSlide[] = [
   },
 ];
 
-export function HeroSlider({ slides = SLIDES }: { slides?: HeroSlide[] }) {
+function bannerToSlide(b: CmsBanner): HeroSlide {
+  return {
+    id: b.id,
+    image: b.image_url,
+    label: b.label || "Featured",
+    title: b.title,
+    description: b.description || "",
+    primaryHref: b.primary_href || "/shop",
+    primaryLabel: b.primary_label || "Shop now",
+    secondaryHref: b.secondary_href || undefined,
+    secondaryLabel: b.secondary_label || undefined,
+  };
+}
+
+export function HeroSlider({
+  slides: slidesProp,
+}: {
+  slides?: HeroSlide[];
+}) {
+  const banners = useQuery(() => cmsApi.listBanners("home_hero"), [], {
+    enabled: !slidesProp,
+  });
+
+  const slides: HeroSlide[] | null =
+    slidesProp ??
+    (banners.isLoading
+      ? null
+      : banners.data && banners.data.length > 0
+        ? banners.data.map(bannerToSlide)
+        : FALLBACK_SLIDES);
+
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const touchX = useRef<number | null>(null);
-  const total = slides.length;
-  const active = slides[index] ?? slides[0];
+  const total = slides?.length ?? 0;
+  const active = slides?.[index] ?? slides?.[0];
+
+  useEffect(() => {
+    setIndex(0);
+  }, [slides?.[0]?.id, total]);
 
   const go = useCallback(
-    (n: number) => setIndex(((n % total) + total) % total),
+    (n: number) => {
+      if (total <= 0) return;
+      setIndex(((n % total) + total) % total);
+    },
     [total],
   );
 
   useEffect(() => {
-    if (paused || total <= 1) return;
+    if (paused || total <= 1 || !slides) return;
     const id = window.setInterval(() => go(index + 1), 6500);
     return () => window.clearInterval(id);
-  }, [go, index, paused, total]);
+  }, [go, index, paused, total, slides]);
 
-  if (!active) return null;
+  if (!slides || !active) {
+    return (
+      <div className="fs-skeleton min-h-[72vh] w-full sm:min-h-[78vh]" role="status" aria-label="Loading banners" />
+    );
+  }
 
   return (
     <section
@@ -117,16 +161,20 @@ export function HeroSlider({ slides = SLIDES }: { slides?: HeroSlide[] }) {
         <h1 className="mt-3 max-w-2xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
           {active.title}
         </h1>
-        <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/85 sm:text-base">
-          {active.description}
-        </p>
+        {active.description ? (
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/85 sm:text-base">
+            {active.description}
+          </p>
+        ) : null}
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href={active.primaryHref} className="fs-btn-primary">
             {active.primaryLabel}
           </Link>
-          <Link href={active.secondaryHref} className="fs-btn-soft">
-            {active.secondaryLabel}
-          </Link>
+          {active.secondaryHref && active.secondaryLabel ? (
+            <Link href={active.secondaryHref} className="fs-btn-soft">
+              {active.secondaryLabel}
+            </Link>
+          ) : null}
         </div>
 
         <div className="mt-10 flex items-center gap-3">

@@ -4,7 +4,7 @@
  */
 import { P, type PermissionCode } from "./permissions";
 
-export type NavGroup = "main" | "catalog" | "commerce" | "team";
+export type NavGroup = "main" | "catalog" | "commerce" | "content" | "team";
 
 export type NavIcon =
   | "home"
@@ -17,6 +17,9 @@ export type NavIcon =
   | "coupon"
   | "bell"
   | "star"
+  | "banner"
+  | "page"
+  | "snippet"
   | "users"
   | "shield";
 
@@ -34,6 +37,7 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
   main: "",
   catalog: "Catalog",
   commerce: "Commerce",
+  content: "Content",
   team: "Team",
 };
 
@@ -119,6 +123,30 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "bell",
   },
   {
+    href: "/cms/banners",
+    label: "Banners",
+    permission: P.CMS_MANAGE,
+    description: "Homepage hero and promo banners",
+    group: "content",
+    icon: "banner",
+  },
+  {
+    href: "/cms/pages",
+    label: "Pages",
+    permission: P.CMS_MANAGE,
+    description: "CMS pages and content blocks",
+    group: "content",
+    icon: "page",
+  },
+  {
+    href: "/cms/snippets",
+    label: "Snippets",
+    permission: P.CMS_MANAGE,
+    description: "Announcement bar and reusable copy",
+    group: "content",
+    icon: "snippet",
+  },
+  {
     href: "/users",
     label: "Users",
     permission: P.USERS_LIST,
@@ -163,7 +191,7 @@ export function visibleNav(
 }
 
 export function groupedNav(items: NavItem[]): { group: NavGroup; label: string; items: NavItem[] }[] {
-  const order: NavGroup[] = ["main", "catalog", "commerce", "team"];
+  const order: NavGroup[] = ["main", "catalog", "commerce", "content", "team"];
   return order
     .map((group) => ({
       group,
