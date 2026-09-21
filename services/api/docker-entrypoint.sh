@@ -3,41 +3,45 @@ set -e
 
 mkdir -p /app/certs
 
-# Option A — paste PEM into env (never commit)
-if [ -n "${DB_SSL_CA_PEM:-}" ]; then
-  printf '%s\n' "$DB_SSL_CA_PEM" | sed 's/\\n/\n/g' > /app/certs/aiven-ca.pem
-  export DB_SSL_CA=/app/certs/aiven-ca.pem
-fi
-
-# Option B — Render Secret File (mounted at /etc/secrets/<filename>)
-# Prefer an existing DB_SSL_CA path; otherwise discover common locations.
-if [ -n "${DB_SSL_CA:-}" ] && [ -f "${DB_SSL_CA}" ]; then
-  :
-elif [ -f /etc/secrets/aiven-ca.pem ]; then
-  export DB_SSL_CA=/etc/secrets/aiven-ca.pem
-elif [ -f /app/certs/aiven-ca.pem ]; then
-  export DB_SSL_CA=/app/certs/aiven-ca.pem
-fi
-
 mode="$(printf '%s' "${DB_SSLMODE:-require}" | tr '[:upper:]' '[:lower:]')"
 needs_ca=0
 case "$mode" in
   verify-ca|verify-full) needs_ca=1 ;;
 esac
 
-if [ -n "${DB_SSL_CA:-}" ] && [ -f "${DB_SSL_CA}" ]; then
-  echo "db_ssl_ca=$DB_SSL_CA"
-elif [ "$needs_ca" = "1" ]; then
-  echo "ERROR: DB_SSLMODE=$mode needs a CA file." >&2
-  echo "  Neon: use DB_SSLMODE=require and leave DB_SSL_CA empty." >&2
-  echo "  Aiven: upload CA PEM and set DB_SSL_CA=/etc/secrets/aiven-ca.pem" >&2
-  echo "  Or set DB_SSL_CA_PEM with the certificate contents." >&2
-  exit 1
+# CA material only for verify-ca / verify-full (e.g. Aiven).
+# Neon + sslmode=require must NOT load an old Aiven CA — that causes
+# SSLCertVerificationError: unable to get local issuer certificate.
+if [ "$needs_ca" = "1" ]; then
+  # Option A — paste PEM into env (never commit)
+  if [ -n "${DB_SSL_CA_PEM:-}" ]; then
+    printf '%s\n' "$DB_SSL_CA_PEM" | sed 's/\\n/\n/g' > /app/certs/aiven-ca.pem
+    export DB_SSL_CA=/app/certs/aiven-ca.pem
+  fi
+
+  # Option B — Render Secret File
+  if [ -n "${DB_SSL_CA:-}" ] && [ -f "${DB_SSL_CA}" ]; then
+    :
+  elif [ -f /etc/secrets/aiven-ca.pem ]; then
+    export DB_SSL_CA=/etc/secrets/aiven-ca.pem
+  elif [ -f /app/certs/aiven-ca.pem ]; then
+    export DB_SSL_CA=/app/certs/aiven-ca.pem
+  fi
+
+  if [ -n "${DB_SSL_CA:-}" ] && [ -f "${DB_SSL_CA}" ]; then
+    echo "db_ssl_ca=$DB_SSL_CA"
+  else
+    echo "ERROR: DB_SSLMODE=$mode needs a CA file." >&2
+    echo "  Neon: use DB_SSLMODE=require and leave DB_SSL_CA / DB_SSL_CA_PEM empty." >&2
+    echo "  Aiven: upload CA PEM and set DB_SSL_CA=/etc/secrets/aiven-ca.pem" >&2
+    exit 1
+  fi
 else
-  echo "db_sslmode=$mode (no CA file — ok for Neon require)"
+  unset DB_SSL_CA || true
+  echo "db_sslmode=$mode (encrypt only, no CA verify — ok for Neon)"
 fi
 
-# Log DB host only (no credentials) to debug NXDOMAIN / wrong URL
+# Log DB host only (no credentials)
 _db_url="${DATABASE_URL:-}"
 if [ -n "$_db_url" ]; then
   _db_host="$(

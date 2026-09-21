@@ -66,7 +66,7 @@ def build_ssl_connect_args(settings: BaseAppSettings) -> dict[str, Any]:
     """asyncpg SSL args for managed Postgres (Neon, Aiven, etc.).
 
     - disable: no SSL
-    - require: encrypt, skip cert verify (no CA) — typical for Neon
+    - require / prefer: encrypt only, do not verify CA (Neon default; ignores DB_SSL_CA)
     - verify-ca / verify-full: encrypt + verify using DB_SSL_CA when set
     """
     import os
@@ -77,30 +77,30 @@ def build_ssl_connect_args(settings: BaseAppSettings) -> dict[str, Any]:
     if mode in ("", "disable", "disabled", "false", "0", "off"):
         return {}
 
-    ca_path = (getattr(settings, "DB_SSL_CA", None) or "").strip()
+    # libpq: sslmode=require encrypts but does NOT verify the server cert.
+    # Never attach an old Aiven CA here — it breaks Neon (CERTIFICATE_VERIFY_FAILED).
+    if mode in ("require", "prefer", "allow"):
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return {"ssl": ctx}
 
+    ca_path = (getattr(settings, "DB_SSL_CA", None) or "").strip()
     if ca_path:
         if not os.path.isfile(ca_path):
             raise FileNotFoundError(
                 f"DB_SSL_CA file not found: {ca_path}. "
-                "For Neon, leave DB_SSL_CA empty and use DB_SSLMODE=require. "
+                "For Neon, set DB_SSLMODE=require and leave DB_SSL_CA empty. "
                 "For Aiven verify-ca, set DB_SSL_CA to the CA PEM path."
             )
         ctx = ssl.create_default_context(cafile=ca_path)
-        # Project CA verifies the server cert; hostname often doesn't match CN
         if mode != "verify-full":
             ctx.check_hostname = False
         return {"ssl": ctx}
 
     ctx = ssl.create_default_context()
-    if mode in ("verify-ca", "verify-full"):
-        if mode != "verify-full":
-            ctx.check_hostname = False
-        return {"ssl": ctx}
-
-    # require / prefer without CA: encrypt only (Neon-friendly)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    if mode != "verify-full":
+        ctx.check_hostname = False
     return {"ssl": ctx}
 
 
