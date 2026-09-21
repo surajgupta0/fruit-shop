@@ -20,8 +20,9 @@ class BaseAppSettings(BaseSettings):
     DB_USER: str = "fruitshop"
     DB_PASSWORD: str = "fruitshop"
     DB_NAME: str = "fruitshop"
-    # require for Aiven / managed Postgres; set disable for plain local Postgres
-    # verify-ca / verify-full need a trusted CA (optional DB_SSL_CA path)
+    # require for Neon / Aiven / managed Postgres; set disable for plain local Postgres
+    # Neon: DB_SSLMODE=require and leave DB_SSL_CA empty
+    # Aiven verify-ca: set DB_SSL_CA to the CA PEM path
     DB_SSLMODE: str = "require"
     DB_SSL_CA: str = ""
 

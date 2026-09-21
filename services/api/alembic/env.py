@@ -18,14 +18,13 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     from app.core.config import get_settings
+    from fruitshop_shared.db import normalize_asyncpg_url
 
     # Prefer settings so DB_HOST / DB_USER / etc. work; DATABASE_URL still overrides
     url = get_settings().database_url or os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL or DB_* parameters are required to run migrations")
-    if url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
+    return normalize_asyncpg_url(url)
 
 
 def get_connect_args() -> dict:
