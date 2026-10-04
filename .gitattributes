@@ -1,0 +1,6 @@
+* text=auto
+
+# Executed inside Linux containers / Vercel builds — must stay LF on Windows checkouts
+*.sh text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf

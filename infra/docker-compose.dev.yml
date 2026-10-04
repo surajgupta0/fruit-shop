@@ -15,20 +15,12 @@ services:
     env_file:
       - ../.env.dev
     volumes:
-      # Local CA only — not in git; keep services/api/certs/aiven-ca.pem on your machine
-      - ../services/api/certs:/app/certs:ro
-    environment:
-      ENVIRONMENT: ${ENVIRONMENT:-staging}
-      OTP_STATIC_CODE: ${OTP_STATIC_CODE:-123456}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_SSLMODE: ${DB_SSLMODE:-verify-ca}
-      DB_SSL_CA: ${DB_SSL_CA:-/app/certs/aiven-ca.pem}
-      DATABASE_URL: ${DATABASE_URL:-}
+      # Live-reload: edits to services/api/app on the host restart uvicorn
+      - ../services/api/app:/app/app
+      - ../services/api/alembic:/app/alembic
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     networks:
       - fruit-shop
     restart: unless-stopped

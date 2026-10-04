@@ -21,8 +21,8 @@ A full-stack e-commerce platform for selling fresh fruit, built as a monorepo wi
                              └─────────┬──────────┘
                                        ▼
                              ┌────────────────────┐
-                             │ PostgreSQL (Neon / │
-                             │ Aiven / any)       │
+                             │ PostgreSQL (Neon)  │
+                             │                    │
                              └────────────────────┘
 ```
 
@@ -82,7 +82,6 @@ fruit-shop/
 │   ├── alembic/versions/      DB migrations (001 → 014)
 │   ├── tests/                 pytest suite (runs on in-memory SQLite)
 │   ├── Dockerfile             Production/dev image (build context = repo root)
-│   └── docker-entrypoint.sh   Handles DB SSL CA setup, then runs the CMD
 ├── frontend/storefront/       Customer Next.js app
 ├── frontend/admin/            Staff Next.js app
 ├── packages/
@@ -140,33 +139,20 @@ cp frontend/admin/.env.example      frontend/admin/.env.local
 
 On Windows PowerShell use `Copy-Item` instead of `cp` (same arguments).
 
-Then edit `.env.dev`:
-- set `DB_HOST=host.docker.internal` (the API container reaches Postgres on your machine)
+Then edit `.env.dev` (and `services/api/.env` if you use it):
+- set `DATABASE_URL` to your Neon connection string (see 4.3)
 - set `JWT_SECRET` to a random value: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
 
-### 4.3 Start PostgreSQL
+### 4.3 Get a database (Neon)
 
-The quickest way is a throwaway Docker container:
+1. Create a free project at https://neon.tech.
+2. **Dashboard → Connect** → copy the connection string. It looks like:
+   ```
+   postgresql://neondb_owner:XXXX@ep-xxxx-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+   ```
+3. Paste it as `DATABASE_URL=...` (no quotes) and keep `DB_SSLMODE=require`.
 
-```bash
-docker run -d --name fruitshop-db \
-  -e POSTGRES_USER=fruitshop \
-  -e POSTGRES_PASSWORD=fruitshop \
-  -e POSTGRES_DB=fruitshop \
-  -p 5432:5432 \
-  -v fruitshop-pgdata:/var/lib/postgresql/data \
-  postgres:16
-```
-
-PowerShell (one line):
-
-```powershell
-docker run -d --name fruitshop-db -e POSTGRES_USER=fruitshop -e POSTGRES_PASSWORD=fruitshop -e POSTGRES_DB=fruitshop -p 5432:5432 -v fruitshop-pgdata:/var/lib/postgresql/data postgres:16
-```
-
-Next time just run `docker start fruitshop-db`.
-
-> Prefer a cloud DB? Put your Neon / Aiven connection details in `.env.dev` instead (see [section 5](#5-environment-variables)).
+No CA certificate or extra SSL setup is needed. Tip: use a separate Neon **branch** (or project) for development so you never touch production data.
 
 ### 4.4 Start the API
 
@@ -174,13 +160,11 @@ Next time just run `docker start fruitshop-db`.
 
 ```bash
 make dev
-# or, without make:
+# Windows / no make:
 docker compose -f infra/docker-compose.dev.yml --env-file .env.dev up --build
 ```
 
-On start-up the container runs `alembic upgrade head` (creates tables + seed data) and then starts Uvicorn with hot-reload.
-
-> Linux only: `host.docker.internal` is not defined by default. Either use your host IP for `DB_HOST`, or add `extra_hosts: ["host.docker.internal:host-gateway"]` under the `api` service in `infra/docker-compose.dev.yml`.
+On start-up the container runs `alembic upgrade head` (creates tables + seed data on the first run — this can take a minute or two against a remote Neon region) and then starts Uvicorn. `services/api/app` is mounted into the container, so code changes reload automatically.
 
 Stop it with `make down` (or `docker compose -f infra/docker-compose.dev.yml --env-file .env.dev down`).
 
@@ -201,8 +185,6 @@ pip install -e ../../packages/shared-lib-py -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
-
-Make sure `services/api/.env` has `DB_HOST=localhost`.
 
 Check it works: open http://localhost:8000/health (should return `{"status":"ok"}`) and http://localhost:8000/docs for the interactive API docs.
 
@@ -235,10 +217,8 @@ Every variable is documented inline in [`.env.example`](.env.example). The impor
 | Variable | Required in prod | Description |
 | --- | --- | --- |
 | `ENVIRONMENT` | yes | `dev`, `staging` or `production` |
-| `DATABASE_URL` | one of these | Full Postgres URL. Overrides `DB_*` when set |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | one of these | Individual DB params |
-| `DB_SSLMODE` | yes | `disable` (local), `require` (Neon etc.), `verify-ca` (Aiven) |
-| `DB_SSL_CA` / `DB_SSL_CA_PEM` | Aiven only | CA certificate path / contents for `verify-ca` |
+| `DATABASE_URL` | yes | Neon connection string (`postgresql://...?sslmode=require`) |
+| `DB_SSLMODE` | yes | `require` for Neon / managed Postgres, `disable` for a plain local Postgres |
 | `JWT_SECRET` | **yes** | Long random string used to sign tokens |
 | `OTP_STATIC_CODE` | **must be empty** | Fixed OTP for testing. If set in prod, anyone can log in as any customer |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_USE_TLS` | yes (for email) | Email delivery |
@@ -287,7 +267,7 @@ This is the setup the repo is already prepared for:
 
 | Piece | Service | Why |
 | --- | --- | --- |
-| Database | **[Neon](https://neon.tech)** (or Aiven / Supabase / Render Postgres) | Managed Postgres, free tier |
+| Database | **[Neon](https://neon.tech)** | Managed Postgres, free tier, no CA file needed |
 | API | **[Render](https://render.com)** Web Service (Docker) | Uses `services/api/Dockerfile` as-is |
 | Storefront | **[Vercel](https://vercel.com)** | `frontend/storefront/vercel.json` is ready |
 | Admin | **[Vercel](https://vercel.com)** (second project) | `frontend/admin/vercel.json` is ready |
@@ -313,9 +293,6 @@ git status --ignored    # .env.dev, services/api/.env, frontend/*/.env.local mus
    postgresql://neondb_owner:XXXX@ep-cool-name-123456.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
    ```
 4. Keep it for Step 2. You do **not** need to create tables — migrations run automatically when the API starts.
-
-> **Using Aiven instead?** Copy host/port/user/password/db into the `DB_*` variables, set `DB_SSLMODE=verify-ca`, download the CA certificate from the Aiven console and either upload it to Render as a Secret File named `aiven-ca.pem` (mounted at `/etc/secrets/aiven-ca.pem`) or paste its contents into `DB_SSL_CA_PEM`.
-
 ### Step 2 — Deploy the API (Render)
 
 1. Sign up at https://render.com and connect your Git provider.
@@ -333,16 +310,13 @@ git status --ignored    # .env.dev, services/api/.env, frontend/*/.env.local mus
    | Docker Build Context Directory | `.` |
    | Instance type | Free works for testing; use a paid instance for real traffic (no cold starts, outbound SMTP allowed) |
 
-4. Under **Advanced → Docker Command**, override the dev command (the Dockerfile's default runs Uvicorn with `--reload`, which is for development only):
-   ```
-   sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers --forwarded-allow-ips='*'"
-   ```
+4. Leave **Docker Command** empty — the Dockerfile already runs migrations and starts Uvicorn on Render's `$PORT`.
 5. Set **Health Check Path** to `/health`.
 6. Add the environment variables (**Environment → Add Environment Variable**, or **Add from .env** and paste):
 
    ```env
    ENVIRONMENT=production
-   DATABASE_URL=postgresql://neondb_owner:XXXX@ep-cool-name-123456.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+   DATABASE_URL=postgresql://neondb_owner:XXXX@ep-cool-name-123456-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
    DB_SSLMODE=require
    JWT_SECRET=<run: python -c "import secrets; print(secrets.token_urlsafe(48))">
    OTP_STATIC_CODE=
@@ -356,7 +330,6 @@ git status --ignored    # .env.dev, services/api/.env, frontend/*/.env.local mus
 
 7. Click **Create Web Service**. Watch the logs; you should see:
    ```
-   db_sslmode=require (encrypt only, no CA verify — ok for Neon)
    INFO  [alembic.runtime.migration] Running upgrade ... -> 014_cms
    Uvicorn running on http://0.0.0.0:10000
    ```
@@ -480,13 +453,12 @@ Finally make sure `OTP_STATIC_CODE` is **empty** in production.
 If you prefer a single server (DigitalOcean, Hetzner, AWS Lightsail, …) with Ubuntu + Docker:
 
 1. Install Docker and Docker Compose, clone the repo, create `.env.dev`-style file (call it `.env.prod`) with production values (see Step 2 / Step 7 above).
-2. Run Postgres (`postgres:16` container with a volume) or use a managed DB.
-3. Build and run the API image without `--reload`:
+2. Use your Neon `DATABASE_URL` (or a local Postgres with `DB_SSLMODE=disable`).
+3. Build and run the API image (values in `.env.prod` must not be quoted — `docker run --env-file` keeps quotes literally):
    ```bash
    docker build -f services/api/Dockerfile -t fruit-shop-api .
    docker run -d --name fruit-shop-api --restart unless-stopped \
-     --env-file .env.prod -p 127.0.0.1:8000:8000 fruit-shop-api \
-     sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips='*'"
+     --env-file .env.prod -p 127.0.0.1:8000:8000 fruit-shop-api
    ```
 4. Build and run each Next.js app (Node 20+):
    ```bash
@@ -527,10 +499,10 @@ Notes:
 | --- | --- |
 | Browser console: `blocked by CORS policy` | Add the exact frontend origin to `CORS_ORIGINS` on the API (no trailing slash) and redeploy the API |
 | Frontend still calls `localhost:8000` in production | `NEXT_PUBLIC_API_URL` was missing at build time. Set it in Vercel and **Redeploy** |
-| `SSLCertVerificationError` / `unable to get local issuer certificate` | For Neon use `DB_SSLMODE=require` and leave `DB_SSL_CA` / `DB_SSL_CA_PEM` empty |
-| `ERROR: DB_SSLMODE=verify-ca needs a CA file` | Upload the Aiven CA as a Render Secret File `aiven-ca.pem`, or set `DB_SSL_CA_PEM`, or switch to `require` |
-| Local Docker API can't reach Postgres | Use `DB_HOST=host.docker.internal` in `.env.dev`, check `docker ps` shows `fruitshop-db`, and `DB_SSLMODE=disable` |
-| `connection refused` on 5432 | Postgres container isn't running: `docker start fruitshop-db` |
+| `connection refused` on 5432 / API can't reach the DB | `DATABASE_URL` is empty or wrong in the env file the API actually reads (`.env.dev` for Docker, `services/api/.env` without Docker) |
+| `password authentication failed` | Copy a fresh connection string from Neon (**Dashboard → Connect**); reset the role password there if needed |
+| `exec /docker-entrypoint.sh: no such file or directory` | You're on an old image. Rebuild with `--build` (the entrypoint script was removed) |
+| Migrations very slow on first start | Normal when your machine is far from the Neon region. Pick a Neon region close to you / your API host |
 | Vercel build: `Cannot find module 'lightningcss.linux-x64-gnu.node'` or oxide errors | Make sure `vercel.json` is being used (Root Directory must be `frontend/storefront` or `frontend/admin`) and the Tailwind/LightningCSS versions in `scripts/vercel-install.sh` match `package-lock.json` |
 | Vercel build: `Module not found: @fruitshop/web-core` | Enable "Include files outside the root directory in the Build Step" |
 | OTP never arrives | Check API logs — when SMTP/Twilio isn't configured or fails, the code is printed there. Check `SMS_PROVIDER` and Twilio credentials |
@@ -562,7 +534,6 @@ These items are **not finished yet** and should be addressed before taking real 
 
 **DevOps gaps**
 13. No CI pipeline (tests + lint + build on every merge request). Add `.gitlab-ci.yml` / GitHub Actions.
-14. No `.dockerignore` — the API image is built with the repo root as context, so `node_modules` and `.next` folders get sent to Docker. Add one excluding `**/node_modules`, `**/.next`, `.git`, `**/.venv`, `.env*`.
-15. The API `Dockerfile` hard-codes dependency versions separately from `pyproject.toml` (they can drift), and its default `CMD` uses `--reload` (dev only — override it in production as shown in Step 2).
-16. `make reset` is identical to `make down`; it doesn't drop data. Local compose has no Postgres service (use the `docker run` command in [4.3](#43-start-postgresql)).
-17. No error monitoring (Sentry) or uptime monitoring, and no documented DB backup policy.
+14. The API `Dockerfile` hard-codes dependency versions separately from `pyproject.toml` (they can drift).
+15. `make reset` is identical to `make down`.
+16. No error monitoring (Sentry) or uptime monitoring, and no documented DB backup policy.

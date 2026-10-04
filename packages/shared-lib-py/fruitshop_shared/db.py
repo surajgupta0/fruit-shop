@@ -1,6 +1,5 @@
 from collections.abc import AsyncGenerator
 from typing import Any
-import ssl
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import (
@@ -48,60 +47,11 @@ def normalize_asyncpg_url(url: str) -> str:
     return urlunparse(parsed._replace(query=query))
 
 
-def sslmode_from_database_url(url: str | None) -> str | None:
-    """Read sslmode from a libpq-style DATABASE_URL if present."""
-    if not url or "?" not in url:
-        return None
-    try:
-        params = parse_qs(urlparse(url).query)
-        values = params.get("sslmode") or params.get("sslMode")
-        if values and values[0]:
-            return values[0].strip().lower()
-    except Exception:
-        return None
-    return None
-
-
 def build_ssl_connect_args(settings: BaseAppSettings) -> dict[str, Any]:
-    """asyncpg SSL args for managed Postgres (Neon, Aiven, etc.).
-
-    - disable: no SSL
-    - require / prefer: encrypt only, do not verify CA (Neon default; ignores DB_SSL_CA)
-    - verify-ca / verify-full: encrypt + verify using DB_SSL_CA when set
-    """
-    import os
-
-    # Neon URLs often embed sslmode=require; honour that when helpful
-    url_mode = sslmode_from_database_url(getattr(settings, "DATABASE_URL", None))
-    mode = (settings.DB_SSLMODE or url_mode or "require").strip().lower()
-    if mode in ("", "disable", "disabled", "false", "0", "off"):
+    """asyncpg SSL args: DB_SSLMODE=disable -> plain TCP, otherwise TLS (Neon requires it)."""
+    if not settings.db_ssl_enabled:
         return {}
-
-    # libpq: sslmode=require encrypts but does NOT verify the server cert.
-    # Never attach an old Aiven CA here — it breaks Neon (CERTIFICATE_VERIFY_FAILED).
-    if mode in ("require", "prefer", "allow"):
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        return {"ssl": ctx}
-
-    ca_path = (getattr(settings, "DB_SSL_CA", None) or "").strip()
-    if ca_path:
-        if not os.path.isfile(ca_path):
-            raise FileNotFoundError(
-                f"DB_SSL_CA file not found: {ca_path}. "
-                "For Neon, set DB_SSLMODE=require and leave DB_SSL_CA empty. "
-                "For Aiven verify-ca, set DB_SSL_CA to the CA PEM path."
-            )
-        ctx = ssl.create_default_context(cafile=ca_path)
-        if mode != "verify-full":
-            ctx.check_hostname = False
-        return {"ssl": ctx}
-
-    ctx = ssl.create_default_context()
-    if mode != "verify-full":
-        ctx.check_hostname = False
-    return {"ssl": ctx}
+    return {"ssl": "require"}
 
 
 def create_engine(settings: BaseAppSettings) -> AsyncEngine:
